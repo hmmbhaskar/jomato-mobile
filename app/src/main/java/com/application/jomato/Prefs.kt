@@ -9,9 +9,13 @@ object Prefs {
 
     private const val PREFS_NAME = "jomato_prefs"
     private const val KEY_THEME_MODE = "theme_mode"
+    private const val KEY_ALERT_SOUND_URI = "alert_sound_uri"
+    private const val KEY_ALERT_CHANNEL_VERSION = "alert_channel_version"
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    // ── Theme ────────────────────────────────────────────────────────────────
 
     /** "system" | "dark" | "light" */
     private val _themeMode = MutableStateFlow("system")
@@ -29,5 +33,32 @@ object Prefs {
         }
         _themeMode.value = next
         prefs(context).edit().putString(KEY_THEME_MODE, next).apply()
+    }
+
+    // ── Alert Sound ──────────────────────────────────────────────────────────
+
+    /** Returns the saved alert sound URI string, or null for the built-in default. */
+    fun getAlertSoundUri(context: Context): String? =
+        prefs(context).getString(KEY_ALERT_SOUND_URI, null)
+
+    /** Save a custom alert sound URI. Pass null to reset to default. */
+    fun setAlertSoundUri(context: Context, uri: String?) {
+        prefs(context).edit().apply {
+            if (uri != null) putString(KEY_ALERT_SOUND_URI, uri)
+            else remove(KEY_ALERT_SOUND_URI)
+        }.apply()
+    }
+
+    /**
+     * Returns the current alert channel version. Incremented each time the user
+     * changes the notification sound, so RescueService creates a new channel
+     * (Android caches channel settings and won't update sound on an existing channel).
+     */
+    fun getAlertChannelVersion(context: Context): Int =
+        prefs(context).getInt(KEY_ALERT_CHANNEL_VERSION, 1)
+
+    fun incrementAlertChannelVersion(context: Context) {
+        val current = getAlertChannelVersion(context)
+        prefs(context).edit().putInt(KEY_ALERT_CHANNEL_VERSION, current + 1).apply()
     }
 }

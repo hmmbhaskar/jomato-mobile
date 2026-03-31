@@ -1,16 +1,22 @@
 package com.application.jomato.ui.dashboard
 
+import android.app.Activity
 import android.content.Intent
+import android.media.RingtoneManager
 import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowForward
-import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.QuestionAnswer
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -18,19 +24,60 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.application.jomato.config.UiConfigManager
+import com.application.jomato.Prefs
+import com.application.jomato.R
 import com.application.jomato.ui.theme.JomatoTheme
 
-private const val FALLBACK_FEATURE_URL = ""
-
+/**
+ * Row that opens the system ringtone picker for the Food Rescue alert sound.
+ * Selected sound is saved to Prefs and used by RescueService when creating the notification channel.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SupportRow(navController: NavController) {
+fun NotificationSoundRow() {
     val context = LocalContext.current
-    val url = UiConfigManager.config?.metadata?.requestFeatureUrl?.takeIf { it.isNotBlank() } ?: FALLBACK_FEATURE_URL
+    val defaultSoundUri = Uri.parse("android.resource://${context.packageName}/${R.raw.food_rescue_alert}")
+
+    // Get the currently saved sound name for display
+    val currentSoundName = remember {
+        val savedUri = Prefs.getAlertSoundUri(context)
+        if (savedUri == null) {
+            "Default (Food Rescue Alert)"
+        } else {
+            try {
+                val ringtone = RingtoneManager.getRingtone(context, Uri.parse(savedUri))
+                ringtone?.getTitle(context) ?: "Custom sound"
+            } catch (_: Exception) {
+                "Custom sound"
+            }
+        }
+    }
+
+    // Launcher for the system ringtone picker
+    val ringtoneLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val uri = result.data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            Prefs.setAlertSoundUri(context, uri?.toString())
+            // Increment channel version so the service creates a new channel with the new sound
+            Prefs.incrementAlertChannelVersion(context)
+        }
+    }
+
     Card(
         onClick = {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            val currentUri = Prefs.getAlertSoundUri(context)?.let { Uri.parse(it) } ?: defaultSoundUri
+
+            val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_NOTIFICATION)
+                putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Food Rescue Alert Sound")
+                putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                putExtra(RingtoneManager.EXTRA_RINGTONE_DEFAULT_URI, defaultSoundUri)
+                putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, currentUri)
+            }
+            ringtoneLauncher.launch(intent)
         },
         colors = CardDefaults.cardColors(containerColor = JomatoTheme.Background),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
@@ -43,7 +90,7 @@ fun SupportRow(navController: NavController) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                Icons.Rounded.Lightbulb,
+                Icons.Rounded.Notifications,
                 contentDescription = null,
                 tint = JomatoTheme.Brand,
                 modifier = Modifier.size(18.dp)
@@ -51,16 +98,17 @@ fun SupportRow(navController: NavController) {
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Request a Feature",
+                    text = "Alert Sound",
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = JomatoTheme.BrandBlack,
                     fontSize = 14.sp
                 )
                 Text(
-                    text = "Opens a prefilled GitHub issue",
+                    text = currentSoundName,
                     style = MaterialTheme.typography.bodySmall,
                     color = JomatoTheme.TextGray,
-                    fontSize = 12.sp
+                    fontSize = 12.sp,
+                    maxLines = 1
                 )
             }
             Icon(

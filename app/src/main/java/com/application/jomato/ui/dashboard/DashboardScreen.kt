@@ -98,7 +98,7 @@ fun DashboardScreen(navController: NavController) {
                 modifier = Modifier.padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                SupportRow(navController = navController)
+                NotificationSoundRow()
                 UiConfigManager.config?.widgets?.find { it.type == "jomato_privacy_faqs" }?.let {
                     PrivacyFaqRow(navController = navController)
                 }

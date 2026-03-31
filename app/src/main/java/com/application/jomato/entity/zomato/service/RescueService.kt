@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import com.application.jomato.MainActivity
+import com.application.jomato.Prefs
 import com.application.jomato.R
 import com.application.jomato.entity.zomato.ZomatoManager
 import com.application.jomato.entity.zomato.api.ApiClient
@@ -38,7 +39,7 @@ class FoodRescueService : Service() {
         const val ACTION_TEST = "com.application.jomato.TEST_NOTIFICATION"
 
         const val CHANNEL_ID_FOREGROUND = "jomato_service_channel"
-        const val CHANNEL_ID_ALERTS = "jomato_alerts_channel_v2"
+        const val CHANNEL_ID_ALERTS_BASE = "jomato_alerts_channel"
         const val NOTIFICATION_ID = 1001
 
         const val TARGET_PACKAGE = "com.application.zomato"
@@ -378,11 +379,19 @@ class FoodRescueService : Service() {
     private fun sendAlertNotification() {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        val soundUri = Uri.parse("android.resource://${packageName}/${R.raw.food_rescue_alert}")
+        // Use user-selected sound, or fall back to the bundled custom alert
+        val defaultSoundUri = Uri.parse("android.resource://${packageName}/${R.raw.food_rescue_alert}")
+        val savedSoundStr = Prefs.getAlertSoundUri(this)
+        val soundUri = if (savedSoundStr != null) Uri.parse(savedSoundStr) else defaultSoundUri
+
+        // Versioned channel ID — incremented when user changes sound,
+        // because Android won't let us update an existing channel's sound.
+        val channelVersion = Prefs.getAlertChannelVersion(this)
+        val channelId = "${CHANNEL_ID_ALERTS_BASE}_v${channelVersion}"
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val alertChannel = NotificationChannel(
-                CHANNEL_ID_ALERTS,
+                channelId,
                 "Food Rescue Alerts",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
@@ -400,6 +409,11 @@ class FoodRescueService : Service() {
                 )
             }
             notificationManager.createNotificationChannel(alertChannel)
+
+            // Clean up old versioned channels
+            for (i in 1 until channelVersion) {
+                notificationManager.deleteNotificationChannel("${CHANNEL_ID_ALERTS_BASE}_v${i}")
+            }
         }
 
         var launchIntent = packageManager.getLaunchIntentForPackage("com.application.zomato")
@@ -417,7 +431,7 @@ class FoodRescueService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID_ALERTS)
+        val notification = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_notification_jomato)
             .setContentTitle("\uD83C\uDF55 Food Rescue Alert!")
             .setContentText("A rescued order is available — tap to claim it now!")
