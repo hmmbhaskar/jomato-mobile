@@ -1,0 +1,103 @@
+{
+  "integrity": {
+    "versions": [],
+    "on_integrity_mismatch": {
+      "message": "",
+      "strict": false
+    }
+  },
+  "entities": {
+    "zomato": {
+      "name": "Zomato",
+      "max_accounts": 1,
+      "healthy": true,
+      "message": "All Zomato services are running normally.",
+      "website_link": "https://zomato.com",
+      "app_link": "https://play.google.com/store/apps/details?id=com.application.zomato",
+      "color": "#CB202D",
+      "enabled": true,
+      "faqs": [
+        {
+          "question": "What is Zomato integration?",
+          "answer": "Jomato connects to your Zomato account to provide features like Food Rescue. Your credentials stay on your device. No data is sent to any third-party server."
+        },
+        {
+          "question": "Is my Zomato account safe?",
+          "answer": "Yes. We use the same session tokens that the official Zomato app uses. Your password is never stored. You can revoke access anytime by removing your account in the app."
+        },
+        {
+          "question": "Why do I need to log in with my phone number?",
+          "answer": "Zomato uses OTP-based authentication. The OTP request goes to Zomato's servers, and you verify it. Jomato never sees or stores your OTP."
+        }
+      ],
+      "features": {
+        "zomato_food_rescue": {
+          "name": "Food Rescue",
+          "login": true,
+          "description": "Get instant alerts when cancelled orders become available near you.",
+          "icon": "assets/food_rescue.svg",
+          "disabled": false,
+          "healthy": true,
+          "coming_soon": false,
+          "new": true,
+          "message": "",
+          "faqs": [
+            {
+              "question": "What is Food Rescue?",
+              "answer": "When someone cancels a food order on Zomato, it becomes available for pickup at a heavily discounted price. Food Rescue alerts you the moment one appears in your area."
+            },
+            {
+              "question": "Does it use my GPS location?",
+              "answer": "No. It uses the delivery area saved in your Zomato account (your saved addresses), not your phone's GPS."
+            },
+            {
+              "question": "Why does it need battery optimization disabled?",
+              "answer": "Food Rescue runs a background service to listen for new orders. Android may kill it to save battery. Disabling battery optimization keeps it running reliably."
+            },
+            {
+              "question": "Will it drain my battery?",
+              "answer": "Minimal impact. The service uses an MQTT connection and sleeps in between events. Most users report negligible battery usage."
+            }
+          ]
+        }
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "jomato_privacy_faqs",
+      "payload": {
+        "content": [
+          {
+            "question": "What data does this app collect?",
+            "answer": "Nothing. This is a zero-telemetry fork. No analytics, no tracking, no install IDs. The app only communicates with Zomato's own servers for login and Food Rescue."
+          },
+          {
+            "question": "Is this app affiliated with Zomato?",
+            "answer": "No. This is an independent, open-source project. It is not endorsed by or affiliated with Zomato or Eternal Ltd. Use at your own risk."
+          },
+          {
+            "question": "Does the app use my GPS location?",
+            "answer": "No. Food Rescue uses the delivery area saved in your Zomato account (your saved addresses), not your phone's GPS."
+          },
+          {
+            "question": "Where does my data go?",
+            "answer": "Nowhere except Zomato's own servers when you use Food Rescue. Your session tokens are stored only on your device in local storage. No data is sent to any third-party server."
+          },
+          {
+            "question": "Can I delete my data?",
+            "answer": "Yes. Removing your account in the app deletes your session from the device. Uninstalling the app removes everything."
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "name": "Jomato",
+    "description": "Zero-Telemetry Fork",
+    "package_name": "com.application.jomato",
+    "website": "",
+    "issues_url": "",
+    "request_feature_url": ""
+  }
+}
