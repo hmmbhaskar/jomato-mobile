@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import com.application.jomato.entity.zomato.ZomatoManager
+import com.application.jomato.entity.zomato.rescue.MonitoredAddress
 import com.application.jomato.entity.zomato.api.TabbedHomeEssentials
 import com.application.jomato.entity.zomato.api.UserLocation
 import com.application.jomato.entity.zomato.service.FoodRescueService
@@ -29,8 +30,8 @@ object RescuePermissionUtils {
         }
     }
 
-    fun activateRescue(context: Context, essentials: TabbedHomeEssentials, location: UserLocation, sessionId: String) {
-        ZomatoManager.saveFoodRescueState(context, essentials, location)
+    fun activateRescue(context: Context, addresses: List<MonitoredAddress>, sessionId: String) {
+        ZomatoManager.saveFoodRescueState(context, addresses)
         ZomatoManager.saveFoodRescueSessionId(context, sessionId)
         val intent = Intent(context, FoodRescueService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -38,7 +39,7 @@ object RescuePermissionUtils {
         } else {
             context.startService(intent)
         }
-        FileLogger.log(context, "RescuePermissionUtils", "Food rescue state saved, service started")
+        FileLogger.log(context, "RescuePermissionUtils", "Food rescue state saved (${addresses.size} addresses), service started")
     }
 
 

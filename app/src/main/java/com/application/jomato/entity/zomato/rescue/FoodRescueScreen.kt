@@ -32,6 +32,8 @@ import com.application.jomato.entity.zomato.api.UserLocation
 import com.application.jomato.ui.theme.JomatoTheme
 import com.application.jomato.utils.FileLogger
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -44,9 +46,10 @@ private sealed class ScreenState {
     data class Active(val state: FoodRescueState) : ScreenState()
     data class Setup(
         val locations: List<UserLocation>,
-        val selectedLocation: UserLocation?,
-        val essentials: TabbedHomeEssentials?,
-        val isFetchingEssentials: Boolean
+        val selectedLocations: Set<Int>,  // addressIds
+        val essentialsMap: Map<Int, TabbedHomeEssentials>,  // addressId -> essentials
+        val fetchingAddressIds: Set<Int>,  // addressIds currently loading
+        val isFetchingAll: Boolean
     ) : ScreenState()
 }
 
@@ -70,28 +73,38 @@ fun FoodRescueContent(sessionId: String) {
                 }
                 if (res.success) {
                     val locs = res.data
+                    // Auto-select first location and fetch its essentials
                     val firstLoc = locs.firstOrNull()
+                    val initialSelected = if (firstLoc != null) setOf(firstLoc.addressId) else emptySet()
+
                     screenState = ScreenState.Setup(
                         locations = locs,
-                        selectedLocation = firstLoc,
-                        essentials = null,
-                        isFetchingEssentials = firstLoc != null
+                        selectedLocations = initialSelected,
+                        essentialsMap = emptyMap(),
+                        fetchingAddressIds = initialSelected,
+                        isFetchingAll = false
                     )
+
+                    // Fetch essentials for the first location
                     if (firstLoc != null) {
                         val ess = withContext(Dispatchers.IO) {
                             ApiClient.getTabbedHomeEssentials(context, firstLoc.cellId, firstLoc.addressId, accessToken)
                         }
-                        screenState = (screenState as? ScreenState.Setup)?.copy(
-                            essentials = ess,
-                            isFetchingEssentials = false
-                        ) ?: screenState
+                        screenState = (screenState as? ScreenState.Setup)?.let { s ->
+                            val newMap = if (ess != null) s.essentialsMap + (firstLoc.addressId to ess) else s.essentialsMap
+                            s.copy(
+                                essentialsMap = newMap,
+                                fetchingAddressIds = s.fetchingAddressIds - firstLoc.addressId
+                            )
+                        } ?: screenState
                     }
                 } else {
                     screenState = ScreenState.Setup(
                         locations = emptyList(),
-                        selectedLocation = null,
-                        essentials = null,
-                        isFetchingEssentials = false
+                        selectedLocations = emptySet(),
+                        essentialsMap = emptyMap(),
+                        fetchingAddressIds = emptySet(),
+                        isFetchingAll = false
                     )
                 }
             } catch (e: Exception) {
@@ -147,29 +160,59 @@ fun FoodRescueContent(sessionId: String) {
                 )
                 is ScreenState.Setup -> SetupView(
                     state = state,
-                    onLocationSelected = { loc ->
+                    onLocationToggled = { loc ->
                         val session = ZomatoManager.getSession(context, sessionId) ?: return@SetupView
-                        screenState = state.copy(
-                            selectedLocation = loc,
-                            essentials = null,
-                            isFetchingEssentials = true
-                        )
-                        scope.launch {
-                            val ess = withContext(Dispatchers.IO) {
-                                ApiClient.getTabbedHomeEssentials(context, loc.cellId, loc.addressId, session.accessToken)
+                        val currentSetup = screenState as? ScreenState.Setup ?: return@SetupView
+                        val addressId = loc.addressId
+                        val isSelected = addressId in currentSetup.selectedLocations
+
+                        if (isSelected) {
+                            // Deselect
+                            screenState = currentSetup.copy(
+                                selectedLocations = currentSetup.selectedLocations - addressId
+                            )
+                        } else {
+                            // Select — and fetch essentials if not already fetched
+                            val newSelected = currentSetup.selectedLocations + addressId
+                            val needsFetch = addressId !in currentSetup.essentialsMap
+
+                            screenState = currentSetup.copy(
+                                selectedLocations = newSelected,
+                                fetchingAddressIds = if (needsFetch) currentSetup.fetchingAddressIds + addressId else currentSetup.fetchingAddressIds
+                            )
+
+                            if (needsFetch) {
+                                scope.launch {
+                                    val ess = withContext(Dispatchers.IO) {
+                                        ApiClient.getTabbedHomeEssentials(context, loc.cellId, loc.addressId, session.accessToken)
+                                    }
+                                    screenState = (screenState as? ScreenState.Setup)?.let { s ->
+                                        val newMap = if (ess != null) s.essentialsMap + (addressId to ess) else s.essentialsMap
+                                        s.copy(
+                                            essentialsMap = newMap,
+                                            fetchingAddressIds = s.fetchingAddressIds - addressId
+                                        )
+                                    } ?: screenState
+                                }
                             }
-                            screenState = (screenState as? ScreenState.Setup)?.copy(
-                                essentials = ess,
-                                isFetchingEssentials = false
-                            ) ?: screenState
                         }
                     },
                     onStart = {
-                        val loc = state.selectedLocation ?: return@SetupView
-                        val ess = state.essentials ?: return@SetupView
-                        RescuePermissionUtils.activateRescue(context, ess, loc, sessionId)
+                        val setup = screenState as? ScreenState.Setup ?: return@SetupView
+
+                        // Build monitored addresses list from selected locations
+                        val addresses = setup.selectedLocations.mapNotNull { addressId ->
+                            val loc = setup.locations.find { it.addressId == addressId } ?: return@mapNotNull null
+                            val ess = setup.essentialsMap[addressId] ?: return@mapNotNull null
+                            if (ess.foodRescue == null) return@mapNotNull null
+                            MonitoredAddress(essentials = ess, location = loc)
+                        }
+
+                        if (addresses.isEmpty()) return@SetupView
+
+                        RescuePermissionUtils.activateRescue(context, addresses, sessionId)
                         screenState = ScreenState.Active(
-                            FoodRescueState(ess, loc, System.currentTimeMillis())
+                            FoodRescueState(addresses, System.currentTimeMillis())
                         )
                     }
                 )
@@ -216,7 +259,7 @@ private fun ActiveView(
 @Composable
 private fun SetupView(
     state: ScreenState.Setup,
-    onLocationSelected: (UserLocation) -> Unit,
+    onLocationToggled: (UserLocation) -> Unit,
     onStart: () -> Unit
 ) {
     val context = LocalContext.current
@@ -252,6 +295,13 @@ private fun SetupView(
         return
     }
 
+    val selectedCount = state.selectedLocations.size
+    val hasEssentialsForAll = state.selectedLocations.all { id ->
+        state.essentialsMap[id]?.foodRescue != null
+    }
+    val isAnyFetching = state.fetchingAddressIds.isNotEmpty()
+    val canStart = selectedCount > 0 && hasEssentialsForAll && !isAnyFetching
+
     Column(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -260,11 +310,43 @@ private fun SetupView(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Header with count
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "SELECT ADDRESSES",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = JomatoTheme.TextMuted,
+                    letterSpacing = 1.2.sp
+                )
+                if (selectedCount > 0) {
+                    Text(
+                        text = "$selectedCount selected",
+                        fontSize = 12.sp,
+                        color = JomatoTheme.Brand,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
             state.locations.forEachIndexed { index, loc ->
+                val isSelected = loc.addressId in state.selectedLocations
+                val isFetching = loc.addressId in state.fetchingAddressIds
+                val essentials = state.essentialsMap[loc.addressId]
+                val hasNoFoodRescue = essentials != null && essentials.foodRescue == null
+
                 RescueLocationItem(
                     location = loc,
-                    isSelected = state.selectedLocation?.addressId == loc.addressId,
-                    onClick = { onLocationSelected(loc) }
+                    isSelected = isSelected,
+                    isFetching = isFetching,
+                    hasNoFoodRescue = hasNoFoodRescue,
+                    onClick = { onLocationToggled(loc) }
                 )
                 if (index < state.locations.lastIndex) {
                     Divider(
@@ -277,10 +359,6 @@ private fun SetupView(
 
             Spacer(modifier = Modifier.height(8.dp))
         }
-
-        val canStart = state.selectedLocation != null &&
-                state.essentials?.foodRescue != null &&
-                !state.isFetchingEssentials
 
         Button(
             onClick = { onStartClick() },
@@ -298,7 +376,7 @@ private fun SetupView(
                 disabledContentColor = JomatoTheme.Background.copy(alpha = 0.5f)
             )
         ) {
-            if (state.isFetchingEssentials) {
+            if (isAnyFetching) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(18.dp),
                     strokeWidth = 2.dp,
@@ -307,7 +385,11 @@ private fun SetupView(
                 Spacer(modifier = Modifier.width(10.dp))
             }
             Text(
-                text = if (state.isFetchingEssentials) "Loading…" else "START MONITORING",
+                text = when {
+                    isAnyFetching -> "Loading…"
+                    selectedCount <= 1 -> "START MONITORING"
+                    else -> "MONITOR $selectedCount ADDRESSES"
+                },
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.5.sp

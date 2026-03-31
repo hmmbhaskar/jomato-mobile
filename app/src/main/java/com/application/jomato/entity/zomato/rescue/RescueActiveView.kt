@@ -65,7 +65,7 @@ fun RescueActiveView(
     ) {
         if (hasClaims) {
             MonitoringHeader(
-                address = state.location.fullAddress,
+                state = state,
                 startedAt = state.startedAtTimestamp,
                 onStop = onStopClick
             )
@@ -86,8 +86,7 @@ fun RescueActiveView(
                 RecentClaimsSection(orders = claimedOrders)
             } else {
                 EmptyClaimsView(
-                    locationName = state.location.name,
-                    startedAt = state.startedAtTimestamp,
+                    state = state,
                     onStop = onStopClick
                 )
             }
@@ -99,7 +98,7 @@ fun RescueActiveView(
 // ── Header ────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun MonitoringHeader(address: String, startedAt: Long, onStop: () -> Unit) {
+private fun MonitoringHeader(state: FoodRescueState, startedAt: Long, onStop: () -> Unit) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
 
     val pulseScale by infiniteTransition.animateFloat(
@@ -149,7 +148,11 @@ private fun MonitoringHeader(address: String, startedAt: Long, onStop: () -> Uni
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = address,
+                text = if (state.locationCount == 1) {
+                    state.primaryLocation.fullAddress
+                } else {
+                    "Monitoring ${state.locationCount} addresses"
+                },
                 fontSize = 13.sp,
                 color = JomatoTheme.BrandBlack,
                 maxLines = 1,
@@ -408,8 +411,14 @@ private fun ClaimedOrderRow(order: OrderDetails) {
 // ── Empty state ───────────────────────────────────────────────────────────────
 
 @Composable
-private fun EmptyClaimsView(locationName: String, startedAt: Long, onStop: () -> Unit) {
+private fun EmptyClaimsView(state: FoodRescueState, onStop: () -> Unit) {
     val context = LocalContext.current
+
+    val locationDisplayText = if (state.locationCount == 1) {
+        "near ${state.primaryLocation.name}"
+    } else {
+        "across ${state.locationCount} addresses"
+    }
 
     val infiniteTransition = rememberInfiniteTransition(label = "radar")
 
@@ -512,7 +521,7 @@ private fun EmptyClaimsView(locationName: String, startedAt: Long, onStop: () ->
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Watching for cancelled orders\nnear $locationName",
+            text = "Watching for cancelled orders\n$locationDisplayText",
             fontSize = 14.sp,
             color = JomatoTheme.TextGray,
             textAlign = TextAlign.Center,
@@ -522,7 +531,7 @@ private fun EmptyClaimsView(locationName: String, startedAt: Long, onStop: () ->
         Spacer(modifier = Modifier.height(8.dp))
 
         // Run timer
-        RunTimer(startedAt = startedAt)
+        RunTimer(startedAt = state.startedAtTimestamp)
 
         Spacer(modifier = Modifier.height(36.dp))
 

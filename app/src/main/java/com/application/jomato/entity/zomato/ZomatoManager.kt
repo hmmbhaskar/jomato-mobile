@@ -5,6 +5,7 @@ import com.application.jomato.entity.zomato.api.OrderDetails
 import com.application.jomato.entity.zomato.api.TabbedHomeEssentials
 import com.application.jomato.entity.zomato.api.UserLocation
 import com.application.jomato.entity.zomato.rescue.FoodRescueState
+import com.application.jomato.entity.zomato.rescue.MonitoredAddress
 import com.application.jomato.sessions.BaseSessionManager
 import com.application.jomato.sessions.Entity
 import com.application.jomato.utils.FileLogger
@@ -71,16 +72,25 @@ object ZomatoManager : BaseSessionManager<ZomatoSession>() {
     }
 
 
-    fun saveFoodRescueState(context: Context, essentials: TabbedHomeEssentials, location: UserLocation) {
-        FileLogger.log(context, TAG, "Saving FR state | location: ${location.name}")
+    /**
+     * Saves multi-address Food Rescue state.
+     * Each pair of (essentials, location) represents one monitored zone.
+     */
+    fun saveFoodRescueState(context: Context, addresses: List<MonitoredAddress>) {
+        FileLogger.log(context, TAG, "Saving FR state | ${addresses.size} addresses")
         try {
+            val essentialsList = addresses.map { json.encodeToString(it.essentials) }
+            val locationsList = addresses.map { json.encodeToString(it.location) }
             prefs(context).edit()
-                .putString(frKey("fr_essentials"), json.encodeToString(essentials))
-                .putString(frKey("fr_location"), json.encodeToString(location))
+                .putString(frKey("fr_essentials_list"), json.encodeToString(essentialsList))
+                .putString(frKey("fr_locations_list"), json.encodeToString(locationsList))
                 .putLong(frKey("fr_started_at"), System.currentTimeMillis())
                 .putLong(frKey("fr_last_notification_at"), 0)
+                // Clean up legacy single-address keys
+                .remove(frKey("fr_essentials"))
+                .remove(frKey("fr_location"))
                 .apply()
-            FileLogger.log(context, TAG, "FR state saved")
+            FileLogger.log(context, TAG, "FR state saved for: ${addresses.map { it.location.name }}")
         } catch (e: Exception) {
             FileLogger.log(context, TAG, "Failed to save FR state | ${e.message}", e)
         }
@@ -88,15 +98,50 @@ object ZomatoManager : BaseSessionManager<ZomatoSession>() {
 
     fun getFoodRescueState(context: Context): FoodRescueState? {
         val p = prefs(context)
+
+        // Try new multi-address format first
+        val essListJson = p.getString(frKey("fr_essentials_list"), null)
+        val locListJson = p.getString(frKey("fr_locations_list"), null)
+
+        if (essListJson != null && locListJson != null) {
+            return try {
+                val essList: List<String> = json.decodeFromString(essListJson)
+                val locList: List<String> = json.decodeFromString(locListJson)
+                val addresses = essList.zip(locList).map { (essJson, locJson) ->
+                    MonitoredAddress(
+                        essentials = json.decodeFromString(essJson),
+                        location = json.decodeFromString(locJson)
+                    )
+                }
+                if (addresses.isEmpty()) return null
+                val state = FoodRescueState(
+                    addresses = addresses,
+                    startedAtTimestamp = p.getLong(frKey("fr_started_at"), 0)
+                )
+                FileLogger.log(context, TAG, "FR state retrieved | ${state.locationCount} locations")
+                state
+            } catch (e: Exception) {
+                FileLogger.log(context, TAG, "Error parsing multi-address FR state | ${e.message}", e)
+                stopFoodRescue(context)
+                null
+            }
+        }
+
+        // Fallback: migrate legacy single-address format
         val essJson = p.getString(frKey("fr_essentials"), null) ?: return null
         val locJson = p.getString(frKey("fr_location"), null) ?: return null
         return try {
-            val state = FoodRescueState(
+            val address = MonitoredAddress(
                 essentials = json.decodeFromString(essJson),
-                location = json.decodeFromString(locJson),
+                location = json.decodeFromString(locJson)
+            )
+            val state = FoodRescueState(
+                addresses = listOf(address),
                 startedAtTimestamp = p.getLong(frKey("fr_started_at"), 0)
             )
-            FileLogger.log(context, TAG, "FR state retrieved | location: ${state.location.name}")
+            FileLogger.log(context, TAG, "FR state (legacy) retrieved | location: ${address.location.name}")
+            // Auto-migrate to new format
+            saveFoodRescueState(context, state.addresses)
             state
         } catch (e: Exception) {
             FileLogger.log(context, TAG, "Error parsing FR state, resetting | ${e.message}", e)
@@ -108,6 +153,8 @@ object ZomatoManager : BaseSessionManager<ZomatoSession>() {
     fun stopFoodRescue(context: Context) {
         FileLogger.log(context, TAG, "Stopping FR")
         prefs(context).edit()
+            .remove(frKey("fr_essentials_list"))
+            .remove(frKey("fr_locations_list"))
             .remove(frKey("fr_essentials"))
             .remove(frKey("fr_location"))
             .remove(frKey("fr_started_at"))
@@ -118,7 +165,8 @@ object ZomatoManager : BaseSessionManager<ZomatoSession>() {
     }
 
     fun isFoodRescueActive(context: Context): Boolean {
-        val active = prefs(context).contains(frKey("fr_essentials"))
+        val active = prefs(context).contains(frKey("fr_essentials_list")) ||
+                     prefs(context).contains(frKey("fr_essentials"))
         FileLogger.log(context, TAG, "FR active check | active: $active")
         return active
     }

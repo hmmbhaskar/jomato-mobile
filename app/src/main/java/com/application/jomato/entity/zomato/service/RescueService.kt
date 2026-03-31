@@ -13,7 +13,6 @@ import com.application.jomato.Prefs
 import com.application.jomato.R
 import com.application.jomato.entity.zomato.ZomatoManager
 import com.application.jomato.entity.zomato.api.ApiClient
-import com.application.jomato.entity.zomato.api.FoodRescueConf
 import com.application.jomato.entity.zomato.api.FoodRescueCartApi
 
 import com.application.jomato.utils.FileLogger
@@ -189,11 +188,12 @@ class FoodRescueService : Service() {
 
                     val isConnected = mqttClient?.isConnected ?: false
                     val connStatus = if (isConnected) "CONNECTED" else "DISCONNECTED"
+                    val locNames = state.addresses.joinToString(", ") { it.location.name }
 
                     FileLogger.log(
                         this@FoodRescueService,
                         "Heartbeat",
-                        "$connStatus | $screenStatus | Loc: ${state.location.name}"
+                        "$connStatus | $screenStatus | ${state.locationCount} locs: $locNames"
                     )
 
                     val now = System.currentTimeMillis()
@@ -201,14 +201,14 @@ class FoodRescueService : Service() {
 
                     if (mqttClient == null || !mqttClient!!.isConnected || shouldForceReconnect) {
                         if (shouldForceReconnect) {
-                            FileLogger.log(this@FoodRescueService, "Service", "Force reconnect triggered (10 min interval)")
+                            FileLogger.log(this@FoodRescueService, "Service", "Force reconnect triggered (interval)")
                         } else {
                             FileLogger.log(this@FoodRescueService, "Service", "MQTT not connected, attempting connection...")
                         }
-                        connectMqtt(state.essentials.foodRescue!!)
+                        connectMqttMulti(state)
                     }
 
-                    updateNotification(buildNotificationText(state.location.name))
+                    updateNotification(buildNotificationText(state))
 
                 } catch (e: Exception) {
                     FileLogger.log(this@FoodRescueService, "Service", "Loop Error: ${e.message}", e)
@@ -219,7 +219,7 @@ class FoodRescueService : Service() {
         }
     }
 
-    private fun buildNotificationText(locationName: String): String {
+    private fun buildNotificationText(state: com.application.jomato.entity.zomato.rescue.FoodRescueState): String {
         if (lastConnectedAt == 0L) return "Connecting..."
         val minutesAgo = (System.currentTimeMillis() - lastConnectedAt) / 60000
         val connText = when {
@@ -227,10 +227,19 @@ class FoodRescueService : Service() {
             minutesAgo == 1L -> "Connected 1 min ago"
             else -> "Connected ${minutesAgo} min ago"
         }
-        return "$locationName · $connText"
+        val locText = if (state.locationCount == 1) {
+            state.primaryLocation.name
+        } else {
+            "${state.locationCount} addresses"
+        }
+        return "$locText · $connText"
     }
 
-    private suspend fun connectMqtt(config: FoodRescueConf) {
+    /**
+     * Connects to the MQTT broker and subscribes to ALL unique channels
+     * from the monitored addresses. Uses the first available config for auth.
+     */
+    private suspend fun connectMqttMulti(state: com.application.jomato.entity.zomato.rescue.FoodRescueState) {
         try {
             if (mqttClient != null) {
                 try {
@@ -241,9 +250,15 @@ class FoodRescueService : Service() {
                 mqttClient = null
             }
 
-           val brokerUrl = "ssl://hedwig.zomato.com:443"
+            // Use the first available food rescue config for broker credentials
+            val primaryConfig = state.addresses.firstNotNullOfOrNull { it.essentials.foodRescue }
+            if (primaryConfig == null) {
+                FileLogger.log(this, "MQTT", "No food rescue config available")
+                return
+            }
 
-            val clientId = "${java.util.UUID.randomUUID().toString().take(23)}"
+            val brokerUrl = "ssl://hedwig.zomato.com:443"
+            val clientId = java.util.UUID.randomUUID().toString().take(23)
 
             mqttClient = MqttClient(brokerUrl, clientId, MemoryPersistence())
 
@@ -260,23 +275,35 @@ class FoodRescueService : Service() {
                 override fun deliveryComplete(token: IMqttDeliveryToken?) {}
             })
 
-           val connOpts = MqttConnectOptions().apply {
-               userName = config.client.username
-               password = config.client.password.toCharArray()
-               isCleanSession = true
-               keepAliveInterval = 30
-               isAutomaticReconnect = false
-               connectionTimeout = 30
-           }
+            val connOpts = MqttConnectOptions().apply {
+                userName = primaryConfig.client.username
+                password = primaryConfig.client.password.toCharArray()
+                isCleanSession = true
+                keepAliveInterval = 30
+                isAutomaticReconnect = false
+                connectionTimeout = 30
+            }
 
             FileLogger.log(this, "MQTT", "Connecting to broker...")
             mqttClient?.connect(connOpts)
 
             if (mqttClient?.isConnected == true) {
                 lastConnectedAt = System.currentTimeMillis()
-                FileLogger.log(this, "MQTT", "Connected. Subscribing...")
-                mqttClient?.subscribe(config.channelName, config.qos)
-                FileLogger.log(this, "MQTT", "Subscribed!")
+
+                // Subscribe to all unique MQTT channels
+                val channels = state.uniqueChannels
+                FileLogger.log(this, "MQTT", "Connected. Subscribing to ${channels.size} channel(s)...")
+
+                for (channel in channels) {
+                    try {
+                        mqttClient?.subscribe(channel, primaryConfig.qos)
+                        FileLogger.log(this, "MQTT", "Subscribed to: $channel")
+                    } catch (e: Exception) {
+                        FileLogger.log(this, "MQTT", "Failed to subscribe to $channel: ${e.message}")
+                    }
+                }
+
+                FileLogger.log(this, "MQTT", "All subscriptions complete")
             }
 
         } catch (e: Exception) {
@@ -373,31 +400,47 @@ class FoodRescueService : Service() {
         val viewerCount: Int
     )
 
+    /**
+     * Tries to fetch cart details from each monitored address.
+     * Returns the first successful result, since the same order event
+     * may only be claimable from the nearest zone.
+     */
     private fun fetchCartDetails(): CartNotifDetails? {
         val state = ZomatoManager.getFoodRescueState(this) ?: return null
         val sessionId = ZomatoManager.getFoodRescueSessionId(this) ?: return null
         val session = ZomatoManager.getSession(this, sessionId) ?: return null
 
-        val cartInfo = FoodRescueCartApi.getFoodRescueCart(
-            this,
-            state.location,
-            state.essentials,
-            session.accessToken
-        ) ?: return null
+        // Try each monitored address — the cart API is location-dependent
+        for (addr in state.addresses) {
+            try {
+                val cartInfo = FoodRescueCartApi.getFoodRescueCart(
+                    this,
+                    addr.location,
+                    addr.essentials,
+                    session.accessToken
+                ) ?: continue
 
-        // Try to get the restaurant name
-        val restaurantMeta = try {
-            ApiClient.getRestaurantMeta(this, cartInfo.resId, session.accessToken)
-        } catch (_: Exception) { null }
+                val restaurantMeta = try {
+                    ApiClient.getRestaurantMeta(this, cartInfo.resId, session.accessToken)
+                } catch (_: Exception) { null }
 
-        val restaurantName = restaurantMeta?.name ?: "Restaurant"
+                val restaurantName = restaurantMeta?.name ?: "Restaurant"
 
-        return CartNotifDetails(
-            restaurantName = restaurantName,
-            originalPrice = cartInfo.catalogTotalCost,
-            discountedPrice = cartInfo.cartFinalCost,
-            viewerCount = cartInfo.viewersCount
-        )
+                FileLogger.log(this, "Logic", "Cart found via ${addr.location.name}: $restaurantName")
+
+                return CartNotifDetails(
+                    restaurantName = restaurantName,
+                    originalPrice = cartInfo.catalogTotalCost,
+                    discountedPrice = cartInfo.cartFinalCost,
+                    viewerCount = cartInfo.viewersCount
+                )
+            } catch (e: Exception) {
+                FileLogger.log(this, "Logic", "Cart fetch failed for ${addr.location.name}: ${e.message}")
+            }
+        }
+
+        FileLogger.log(this, "Logic", "Cart not found from any of ${state.locationCount} addresses")
+        return null
     }
 
     private suspend fun handleOrderClaimed(root: JsonObject) {
