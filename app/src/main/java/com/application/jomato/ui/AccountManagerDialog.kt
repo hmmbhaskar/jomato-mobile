@@ -115,7 +115,7 @@ fun AccountManagerDialog(
                                 }
                             )
                             if (index < sessions.lastIndex) {
-                                Divider(
+                                HorizontalDivider(
                                     color = JomatoTheme.Divider,
                                     thickness = 0.5.dp,
                                     modifier = Modifier.padding(start = 72.dp, end = 20.dp)
@@ -127,7 +127,7 @@ fun AccountManagerDialog(
 
                 val canAdd = sessions.size < entity.maxAccounts && entity.isEnabled
                 if (canAdd) {
-                    Divider(
+                    HorizontalDivider(
                         color = JomatoTheme.Divider,
                         thickness = 0.5.dp,
                         modifier = Modifier.padding(horizontal = 20.dp)

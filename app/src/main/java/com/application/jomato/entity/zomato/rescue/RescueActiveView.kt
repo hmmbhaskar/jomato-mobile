@@ -269,7 +269,7 @@ private fun RecentClaimsSection(orders: List<OrderDetails>) {
         orders.forEachIndexed { index, order ->
             ClaimedOrderRow(order = order)
             if (index < orders.lastIndex) {
-                Divider(
+                HorizontalDivider(
                     color = JomatoTheme.Divider,
                     thickness = 0.5.dp,
                     modifier = Modifier.padding(vertical = 12.dp)

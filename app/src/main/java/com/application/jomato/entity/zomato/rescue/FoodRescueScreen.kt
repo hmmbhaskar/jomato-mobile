@@ -349,7 +349,7 @@ private fun SetupView(
                     onClick = { onLocationToggled(loc) }
                 )
                 if (index < state.locations.lastIndex) {
-                    Divider(
+                    HorizontalDivider(
                         color = JomatoTheme.Divider,
                         thickness = 0.5.dp,
                         modifier = Modifier.padding(horizontal = 20.dp)

@@ -44,7 +44,7 @@ data class JomatoFeature(
 
         fun buildAll(): List<JomatoFeature> {
             UiConfigManager.config ?: return emptyList()
-            return Entity.values().flatMap { entity ->
+            return Entity.entries.flatMap { entity ->
                 val info = entity.info ?: return@flatMap emptyList()
                 if (!info.enabled) return@flatMap emptyList()
                 info.features.map { (id, fc) -> fromConfig(entity, id, fc) }

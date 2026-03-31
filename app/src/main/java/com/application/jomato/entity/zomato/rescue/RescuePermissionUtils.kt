@@ -8,8 +8,6 @@ import android.os.PowerManager
 import android.provider.Settings
 import com.application.jomato.entity.zomato.ZomatoManager
 import com.application.jomato.entity.zomato.rescue.MonitoredAddress
-import com.application.jomato.entity.zomato.api.TabbedHomeEssentials
-import com.application.jomato.entity.zomato.api.UserLocation
 import com.application.jomato.entity.zomato.service.FoodRescueService
 import com.application.jomato.utils.FileLogger
 

@@ -39,7 +39,7 @@ object EntityRegistry {
 
     /** Scan all entities to find a feature config by ID (needed by FeatureScreen). */
     fun findFeature(featureId: String): FeatureLookup? {
-        for (entity in Entity.values()) {
+        for (entity in Entity.entries) {
             val info = get(entity) ?: continue
             val config = info.features[featureId] ?: continue
             return FeatureLookup(entity, info, config)

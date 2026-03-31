@@ -28,7 +28,7 @@ import com.application.jomato.ui.theme.JomatoTheme
 
 @Composable
 fun EntityScreen(entityId: String, navController: NavController) {
-    val entity = Entity.values().firstOrNull { it.keyPrefix == entityId }
+    val entity = Entity.entries.firstOrNull { it.keyPrefix == entityId }
     val info = EntityRegistry.get(entityId)
 
     if (entity == null) {
@@ -248,7 +248,7 @@ private fun InfoRow(
 
 @Composable
 private fun InfoDivider() {
-    Divider(
+    HorizontalDivider(
         color = JomatoTheme.Divider,
         thickness = 0.5.dp,
         modifier = Modifier.padding(horizontal = 20.dp)

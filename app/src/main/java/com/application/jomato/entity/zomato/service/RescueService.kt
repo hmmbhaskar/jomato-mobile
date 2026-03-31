@@ -391,7 +391,7 @@ class FoodRescueService : Service() {
 
     /**
      * Fetches the current Food Rescue cart details from Zomato's API.
-     * Returns a triple of (restaurantName, originalPrice, discountedPrice, viewerCount) or null.
+     * Returns cart details (restaurant name, prices, viewer count) or null if unavailable.
      */
     private data class CartNotifDetails(
         val restaurantName: String,
