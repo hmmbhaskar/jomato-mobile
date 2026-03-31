@@ -61,17 +61,12 @@ Jomato is an unofficial, reverse-engineered client for Zomato that delivers util
 
 1. Clone this repository
 2. Open the project in **Android Studio**
-3. Create `local.properties` in the project root:
-   ```properties
-   sdk.dir=C\:\\Users\\YourUsername\\AppData\\Local\\Android\\Sdk
-   UI_JSON_HOST_PRIMARY=localhost
-   UI_JSON_HOST_FALLBACK=localhost
-   ```
+3. Android Studio will automatically create `local.properties` with your SDK path
 4. Let Gradle sync complete
 5. **Build** → **Build Bundle(s) / APK(s)** → **Build APK(s)**
 6. Or from terminal: `./gradlew assembleRelease`
 
-> **Note:** Set `UI_JSON_HOST_PRIMARY` and `UI_JSON_HOST_FALLBACK` to `localhost` to fully disconnect from any external config servers. The app will still function for Food Rescue monitoring.
+> **Note:** All UI configuration is bundled locally — the app makes zero network calls to any config server.
 
 ---
 

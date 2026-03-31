@@ -1,8 +1,9 @@
 package com.application.jomato.widgets
 
 /**
- * Registry of widgets by type. Register concrete widgets (e.g. FaqWidget) so that
- * config-driven widget entries (type + payload from UiConfig) can be resolved and displayed.
+ * Registry of widgets by type. Register concrete widgets so that
+ * config-driven widget entries (type + payload from ui.json) can be resolved and displayed.
+ * Zero-telemetry fork: UpdateWidget and AttributionWidget have been removed.
  */
 object WidgetRegistry {
 
@@ -10,8 +11,6 @@ object WidgetRegistry {
 
     init {
         register(FaqWidget())
-        register(AttributionWidget())
-        // UpdateWidget removed: zero telemetry fork does not support remote APK updates
     }
 
     fun register(widget: BaseWidget) {

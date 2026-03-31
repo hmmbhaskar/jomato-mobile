@@ -2,27 +2,16 @@ package com.application.jomato
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.application.jomato.utils.FileLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 object Prefs {
 
     private const val PREFS_NAME = "jomato_prefs"
-    private const val TAG = "Prefs"
-    private const val KEY_HIDE_INTEGRITY = "hide_integrity_dialog"
     private const val KEY_THEME_MODE = "theme_mode"
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-
-
-    fun getHideIntegrity(context: Context): Boolean =
-        prefs(context).getBoolean(KEY_HIDE_INTEGRITY, false)
-
-    fun setHideIntegrity(context: Context, hide: Boolean) {
-        prefs(context).edit().putBoolean(KEY_HIDE_INTEGRITY, hide).apply()
-    }
 
     /** "system" | "dark" | "light" */
     private val _themeMode = MutableStateFlow("system")
@@ -41,5 +30,4 @@ object Prefs {
         _themeMode.value = next
         prefs(context).edit().putString(KEY_THEME_MODE, next).apply()
     }
-
 }
