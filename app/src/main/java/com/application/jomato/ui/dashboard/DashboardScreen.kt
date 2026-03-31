@@ -6,12 +6,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.application.jomato.BuildConfig
 import com.application.jomato.config.FeatureRegistry
 import com.application.jomato.config.UiConfigManager
 import com.application.jomato.ui.AccountManagerDialog
@@ -55,10 +57,10 @@ fun DashboardScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(20.dp))
 
             SectionHeader(title = "Features")
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Column(
                 modifier = Modifier.padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 features.forEach { feature ->
                     FeatureCard(
@@ -90,13 +92,13 @@ fun DashboardScreen(navController: NavController) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
-            SectionHeader(title = "Support")
-            Spacer(modifier = Modifier.height(8.dp))
+            SectionHeader(title = "Settings")
+            Spacer(modifier = Modifier.height(10.dp))
             Column(
                 modifier = Modifier.padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 NotificationSoundRow()
                 UiConfigManager.config?.widgets?.find { it.type == "jomato_privacy_faqs" }?.let {
@@ -104,7 +106,18 @@ fun DashboardScreen(navController: NavController) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            // ── App version footer ──────────────────────────────────────────
+            Spacer(modifier = Modifier.height(32.dp))
+            Text(
+                text = "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 20.dp),
+                color = JomatoTheme.TextMuted,
+                fontSize = 11.sp,
+                letterSpacing = 0.3.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
         }
     }
 }
@@ -115,9 +128,9 @@ fun SectionHeader(title: String) {
         text = title.uppercase(),
         modifier = Modifier.padding(horizontal = 20.dp),
         style = MaterialTheme.typography.labelSmall,
-        color = JomatoTheme.TextGray,
+        color = JomatoTheme.TextMuted,
         fontWeight = FontWeight.Bold,
         fontSize = 10.sp,
-        letterSpacing = 1.sp
+        letterSpacing = 1.5.sp
     )
 }

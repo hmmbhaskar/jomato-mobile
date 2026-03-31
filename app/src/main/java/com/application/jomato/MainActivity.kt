@@ -121,12 +121,44 @@ fun JomatoApp() {
 
 @Composable
 fun SplashScreen() {
+    var visible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) { visible = true }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(JomatoTheme.Background),
         contentAlignment = Alignment.Center
     ) {
-        CircularProgressIndicator(color = JomatoTheme.Brand)
+        androidx.compose.animation.AnimatedVisibility(
+            visible = visible,
+            enter = androidx.compose.animation.fadeIn(
+                animationSpec = androidx.compose.animation.core.tween(600)
+            )
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "JOMATO",
+                    color = JomatoTheme.Brand,
+                    fontSize = 32.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    letterSpacing = 6.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Zero Telemetry Edition",
+                    color = JomatoTheme.TextGray,
+                    fontSize = 12.sp,
+                    letterSpacing = 1.sp
+                )
+                Spacer(modifier = Modifier.height(32.dp))
+                CircularProgressIndicator(
+                    color = JomatoTheme.Brand,
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp
+                )
+            }
+        }
     }
 }

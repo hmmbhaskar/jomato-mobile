@@ -36,24 +36,24 @@ fun FeatureCard(feature: JomatoFeature, onClick: () -> Unit, onEntityClick: (() 
     val warning = JomatoTheme.Warning
     val borderColor = when {
         !feature.healthy -> warning.copy(alpha = 0.3f)
-        else -> JomatoTheme.Divider
+        else -> JomatoTheme.GlassBorder.copy(alpha = 0.6f)
     }
 
     Card(
         onClick = { if (!feature.isDimmed) onClick() },
-        colors = CardDefaults.cardColors(containerColor = JomatoTheme.Background),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, borderColor),
+        colors = CardDefaults.cardColors(containerColor = JomatoTheme.CardBg),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (JomatoTheme.isDark) 0.dp else 1.dp),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(0.5.dp, borderColor),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column {
             Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 FeatureIcon(feature)
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(14.dp))
                 FeatureContent(feature, onEntityClick = onEntityClick, modifier = Modifier.weight(1f))
                 Spacer(modifier = Modifier.width(8.dp))
                 TrailingIndicator(feature, warning)
@@ -75,17 +75,20 @@ fun FeatureCard(feature: JomatoFeature, onClick: () -> Unit, onEntityClick: (() 
 private fun FeatureIcon(feature: JomatoFeature) {
     val context = LocalContext.current
     val tint = if (feature.isDimmed) JomatoTheme.TextGray else JomatoTheme.Brand
-    val bg = if (feature.isDimmed) JomatoTheme.TextGray.copy(alpha = 0.06f) else JomatoTheme.BrandLight
+    val bg = if (feature.isDimmed)
+        JomatoTheme.TextGray.copy(alpha = 0.06f)
+    else
+        JomatoTheme.BrandLight
 
     Box(
         modifier = Modifier
-            .size(36.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .size(42.dp)
+            .clip(RoundedCornerShape(12.dp))
             .background(bg),
         contentAlignment = Alignment.Center
     ) {
         val fallback: @Composable () -> Unit = {
-            Icon(Icons.Filled.Info, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
+            Icon(Icons.Filled.Info, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
         }
 
         if (!feature.iconLink.isNullOrBlank()) {
@@ -95,7 +98,7 @@ private fun FeatureIcon(feature: JomatoFeature) {
                     .decoderFactory(SvgDecoder.Factory())
                     .build(),
                 contentDescription = null,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(20.dp),
                 contentScale = ContentScale.Fit,
                 colorFilter = ColorFilter.tint(tint),
                 loading = { fallback() },
@@ -121,7 +124,7 @@ private fun FeatureContent(feature: JomatoFeature, onEntityClick: (() -> Unit)?,
                 text = feature.title,
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                 color = if (feature.isDimmed) JomatoTheme.TextGray else JomatoTheme.BrandBlack,
-                fontSize = 14.sp,
+                fontSize = 15.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false)
@@ -129,12 +132,13 @@ private fun FeatureContent(feature: JomatoFeature, onEntityClick: (() -> Unit)?,
             EntityPill(feature, onEntityClick)
             if (feature.isNew && !feature.isDimmed) NewBadge()
         }
+        Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = feature.description,
             style = MaterialTheme.typography.bodySmall,
             color = JomatoTheme.TextGray,
             fontSize = 12.sp,
-            lineHeight = 16.sp,
+            lineHeight = 17.sp,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
@@ -216,27 +220,27 @@ private fun TrailingIndicator(feature: JomatoFeature, warningColor: Color) {
         else -> Icon(
             Icons.Rounded.ArrowForward,
             contentDescription = null,
-            tint = JomatoTheme.TextGray,
+            tint = JomatoTheme.TextMuted,
             modifier = Modifier.size(16.dp)
         )
     }
 }
 
-// ── Maintenance strip (only case the card expands vertically) ────────────────
+// ── Maintenance strip ────────────────────────────────────────────────────────
 
 @Composable
 private fun MaintenanceStrip(message: String, warningColor: Color) {
     Box(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp)
-            .height(1.dp)
+            .padding(horizontal = 16.dp)
+            .height(0.5.dp)
             .background(JomatoTheme.Divider)
     )
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {

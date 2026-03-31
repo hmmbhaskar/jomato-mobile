@@ -4,10 +4,10 @@ import android.app.Activity
 import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
-import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -79,30 +80,39 @@ fun NotificationSoundRow() {
             }
             ringtoneLauncher.launch(intent)
         },
-        colors = CardDefaults.cardColors(containerColor = JomatoTheme.Background),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, JomatoTheme.Divider),
+        colors = CardDefaults.cardColors(containerColor = JomatoTheme.CardBg),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (JomatoTheme.isDark) 0.dp else 1.dp),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(0.5.dp, JomatoTheme.GlassBorder.copy(alpha = 0.6f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                Icons.Rounded.Notifications,
-                contentDescription = null,
-                tint = JomatoTheme.Brand,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(JomatoTheme.BrandLight),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Rounded.Notifications,
+                    contentDescription = null,
+                    tint = JomatoTheme.Brand,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Alert Sound",
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = JomatoTheme.BrandBlack,
-                    fontSize = 14.sp
+                    fontSize = 15.sp
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = currentSoundName,
                     style = MaterialTheme.typography.bodySmall,
@@ -114,7 +124,7 @@ fun NotificationSoundRow() {
             Icon(
                 Icons.Rounded.ArrowForward,
                 contentDescription = null,
-                tint = JomatoTheme.TextGray,
+                tint = JomatoTheme.TextMuted,
                 modifier = Modifier.size(16.dp)
             )
         }
@@ -126,30 +136,39 @@ fun NotificationSoundRow() {
 fun PrivacyFaqRow(navController: NavController) {
     Card(
         onClick = { navController.navigate("privacy_faqs") },
-        colors = CardDefaults.cardColors(containerColor = JomatoTheme.Background),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, JomatoTheme.Divider),
+        colors = CardDefaults.cardColors(containerColor = JomatoTheme.CardBg),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (JomatoTheme.isDark) 0.dp else 1.dp),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(0.5.dp, JomatoTheme.GlassBorder.copy(alpha = 0.6f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                Icons.Rounded.QuestionAnswer,
-                contentDescription = null,
-                tint = JomatoTheme.Brand,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(JomatoTheme.BrandLight),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Rounded.QuestionAnswer,
+                    contentDescription = null,
+                    tint = JomatoTheme.Brand,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Privacy & FAQs",
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = JomatoTheme.BrandBlack,
-                    fontSize = 14.sp
+                    fontSize = 15.sp
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "Data and privacy questions",
                     style = MaterialTheme.typography.bodySmall,
@@ -160,7 +179,7 @@ fun PrivacyFaqRow(navController: NavController) {
             Icon(
                 Icons.Rounded.ArrowForward,
                 contentDescription = null,
-                tint = JomatoTheme.TextGray,
+                tint = JomatoTheme.TextMuted,
                 modifier = Modifier.size(16.dp)
             )
         }

@@ -8,11 +8,10 @@ import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.application.jomato.ui.dashboard.DashboardBottomBar
 import com.application.jomato.ui.theme.JomatoTheme
 
 /**
- * Shared screen shell: Scaffold + bottomBar (config-driven: update + attribution widgets).
+ * Shared screen shell: Scaffold with optional top bar.
  * Supply either a custom [topBar] or [title] + [showBack] for the standard app bar.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,8 +52,7 @@ fun AppScreen(
                 )
                 else -> { /* no top bar */ }
             }
-        },
-        bottomBar = { DashboardBottomBar() }
+        }
     ) { padding ->
         Column(
             modifier = Modifier

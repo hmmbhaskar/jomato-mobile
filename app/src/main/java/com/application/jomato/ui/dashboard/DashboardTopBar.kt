@@ -1,10 +1,7 @@
 package com.application.jomato.ui.dashboard
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.SettingsBrightness
@@ -21,19 +18,24 @@ import androidx.compose.ui.unit.sp
 import com.application.jomato.Prefs
 import com.application.jomato.config.UiConfigManager
 import com.application.jomato.ui.theme.JomatoTheme
-
-private const val FALLBACK_ISSUES_URL = ""
+import java.util.Calendar
 
 @Composable
 fun DashboardTopBar() {
     val context = LocalContext.current
-    val issuesUrl = UiConfigManager.config?.metadata?.issuesUrl?.takeIf { it.isNotBlank() } ?: FALLBACK_ISSUES_URL
     val themeMode by Prefs.themeMode.collectAsState()
 
     val themeIcon = when (themeMode) {
         "dark" -> Icons.Rounded.DarkMode
         "light" -> Icons.Rounded.LightMode
         else -> Icons.Rounded.SettingsBrightness
+    }
+
+    val greeting = when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
+        in 5..11 -> "Good morning!"
+        in 12..16 -> "Good afternoon!"
+        in 17..20 -> "Good evening!"
+        else -> "Good night!"
     }
 
     Surface(
@@ -60,7 +62,7 @@ fun DashboardTopBar() {
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Welcome back!",
+                    text = greeting,
                     style = MaterialTheme.typography.titleLarge,
                     color = JomatoTheme.BrandBlack,
                     fontWeight = FontWeight.Bold,
@@ -68,28 +70,13 @@ fun DashboardTopBar() {
                 )
             }
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { Prefs.cycleThemeMode(context) }) {
-                    Icon(
-                        themeIcon,
-                        contentDescription = "Theme: $themeMode",
-                        tint = JomatoTheme.TextGray,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                IconButton(onClick = {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(issuesUrl)))
-                }) {
-                    Icon(
-                        Icons.Rounded.BugReport,
-                        contentDescription = "Report Issue",
-                        tint = JomatoTheme.TextGray,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+            IconButton(onClick = { Prefs.cycleThemeMode(context) }) {
+                Icon(
+                    themeIcon,
+                    contentDescription = "Theme: $themeMode",
+                    tint = JomatoTheme.TextGray,
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }
