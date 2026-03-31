@@ -3,6 +3,8 @@ package com.application.jomato.entity.zomato.service
 import android.app.*
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
@@ -376,6 +378,8 @@ class FoodRescueService : Service() {
     private fun sendAlertNotification() {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
+        val soundUri = Uri.parse("android.resource://${packageName}/${R.raw.food_rescue_alert}")
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val alertChannel = NotificationChannel(
                 CHANNEL_ID_ALERTS,
@@ -383,9 +387,17 @@ class FoodRescueService : Service() {
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 enableVibration(true)
+                vibrationPattern = longArrayOf(0, 300, 150, 300)
                 enableLights(true)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-                description = "Notifications for fresh food rescue opportunities"
+                description = "Urgent notifications for food rescue opportunities"
+                setSound(
+                    soundUri,
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
             }
             notificationManager.createNotificationChannel(alertChannel)
         }
@@ -407,11 +419,12 @@ class FoodRescueService : Service() {
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID_ALERTS)
             .setSmallIcon(R.drawable.ic_notification_jomato)
-            .setContentTitle("Food Rescue Alert!")
-            .setContentText("Click to open Zomato")
+            .setContentTitle("\uD83C\uDF55 Food Rescue Alert!")
+            .setContentText("A rescued order is available — tap to claim it now!")
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setSound(soundUri)
+            .setVibrate(longArrayOf(0, 300, 150, 300))
             .setFullScreenIntent(pendingIntent, true)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
