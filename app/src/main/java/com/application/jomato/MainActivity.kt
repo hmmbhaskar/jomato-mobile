@@ -14,8 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.application.jomato.config.IntegrityResult
-import com.application.jomato.ui.IntegrityDialog
+
 import com.application.jomato.config.UiConfigManager
 import com.application.jomato.sessions.Entity
 import com.application.jomato.sessions.SessionMigration
@@ -43,9 +42,6 @@ fun JomatoApp() {
     val navController = rememberNavController()
     val context = LocalContext.current
 
-    var integrityResult by remember { mutableStateOf<IntegrityResult?>(null) }
-    var showIntegrityDialog by remember { mutableStateOf(false) }
-
     LaunchedEffect(Unit) {
         Prefs.loadThemeMode(context)
 
@@ -53,17 +49,9 @@ fun JomatoApp() {
             UiConfigManager.fetch(context)
         }
 
-        withContext(Dispatchers.IO) {
-            integrityResult = UiConfigManager.checkIntegrity(context)
-        }
-
-        if (integrityResult is IntegrityResult.Fail) {
-            val fail = integrityResult as IntegrityResult.Fail
-            showIntegrityDialog = fail.strict || !Prefs.getHideIntegrity(context)
-            if (fail.strict) return@LaunchedEffect
-        }
-
-
+        // Integrity check skipped — this is a self-compiled fork.
+        // The original check compared the APK hash against the author's
+        // known digests, which will never match a self-built APK.
 
         val migrated = withContext(Dispatchers.IO) {
             SessionMigration.runIfNeeded(context)
@@ -84,14 +72,6 @@ fun JomatoApp() {
         }
     }
 
-    if (showIntegrityDialog && integrityResult is IntegrityResult.Fail) {
-        val fail = integrityResult as IntegrityResult.Fail
-        IntegrityDialog(
-            message = fail.message,
-            strict = fail.strict,
-            onDismiss = { showIntegrityDialog = false }
-        )
-    }
 
     NavHost(navController = navController, startDestination = "splash") {
         composable("splash") { SplashScreen() }
