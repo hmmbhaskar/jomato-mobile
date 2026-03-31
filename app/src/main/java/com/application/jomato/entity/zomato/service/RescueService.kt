@@ -475,6 +475,10 @@ class FoodRescueService : Service() {
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val serviceChannel = NotificationChannel(CHANNEL_ID_FOREGROUND, "Background Service", NotificationManager.IMPORTANCE_LOW)
             manager.createNotificationChannel(serviceChannel)
+
+            // Clean up legacy channel from older versions (had default system sound)
+            manager.deleteNotificationChannel("jomato_alerts_channel_v2")
+            manager.deleteNotificationChannel("jomato_alerts_channel")
         }
     }
 
