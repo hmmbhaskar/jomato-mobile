@@ -14,6 +14,7 @@ import com.application.jomato.R
 import com.application.jomato.entity.zomato.ZomatoManager
 import com.application.jomato.entity.zomato.api.ApiClient
 import com.application.jomato.entity.zomato.api.FoodRescueConf
+import com.application.jomato.entity.zomato.api.FoodRescueCartApi
 
 import com.application.jomato.utils.FileLogger
 import kotlinx.coroutines.*
@@ -94,7 +95,16 @@ class FoodRescueService : Service() {
 
         if (intent?.action == ACTION_TEST) {
             FileLogger.log(this, "Service", "Manual Test Triggered")
-            sendAlertNotification()
+            val notifId = sendAlertNotification()
+            // Also try to fetch real cart details for the test
+            serviceScope.launch {
+                try {
+                    val cartDetails = fetchCartDetails()
+                    if (cartDetails != null) {
+                        updateAlertWithDetails(notifId, cartDetails)
+                    }
+                } catch (_: Exception) { }
+            }
             return START_STICKY
         }
 
@@ -330,12 +340,64 @@ class FoodRescueService : Service() {
 
         if (timeSinceLast >= NOTIFICATION_COOLDOWN_MS) {
             FileLogger.log(this, "Logic", "Cooldown expired ($timeSinceLast > $NOTIFICATION_COOLDOWN_MS). Sending Notification.")
-            sendAlertNotification()
+
+            // Stage 1: Fire the notification immediately with sound
+            val notifId = sendAlertNotification()
             ZomatoManager.saveLastNotification(this, now)
+
+            // Stage 2: Fetch cart details in background and update notification
+            serviceScope.launch {
+                try {
+                    val cartDetails = fetchCartDetails()
+                    if (cartDetails != null) {
+                        updateAlertWithDetails(notifId, cartDetails)
+                    }
+                } catch (e: Exception) {
+                    FileLogger.log(this@FoodRescueService, "Logic", "Cart fetch for notification failed: ${e.message}")
+                }
+            }
         } else {
             val remaining = (NOTIFICATION_COOLDOWN_MS - timeSinceLast) / 1000
             FileLogger.log(this, "Logic", "Notification suppressed. Cooldown active (${remaining}s remaining).")
         }
+    }
+
+    /**
+     * Fetches the current Food Rescue cart details from Zomato's API.
+     * Returns a triple of (restaurantName, originalPrice, discountedPrice, viewerCount) or null.
+     */
+    private data class CartNotifDetails(
+        val restaurantName: String,
+        val originalPrice: Double?,
+        val discountedPrice: Double,
+        val viewerCount: Int
+    )
+
+    private fun fetchCartDetails(): CartNotifDetails? {
+        val state = ZomatoManager.getFoodRescueState(this) ?: return null
+        val sessionId = ZomatoManager.getFoodRescueSessionId(this) ?: return null
+        val session = ZomatoManager.getSession(this, sessionId) ?: return null
+
+        val cartInfo = FoodRescueCartApi.getFoodRescueCart(
+            this,
+            state.location,
+            state.essentials,
+            session.accessToken
+        ) ?: return null
+
+        // Try to get the restaurant name
+        val restaurantMeta = try {
+            ApiClient.getRestaurantMeta(this, cartInfo.resId, session.accessToken)
+        } catch (_: Exception) { null }
+
+        val restaurantName = restaurantMeta?.name ?: "Restaurant"
+
+        return CartNotifDetails(
+            restaurantName = restaurantName,
+            originalPrice = cartInfo.catalogTotalCost,
+            discountedPrice = cartInfo.cartFinalCost,
+            viewerCount = cartInfo.viewersCount
+        )
     }
 
     private suspend fun handleOrderClaimed(root: JsonObject) {
@@ -376,7 +438,14 @@ class FoodRescueService : Service() {
         }
     }
 
-    private fun sendAlertNotification() {
+    /** Stable ID for the current alert notification, so stage 2 can update it */
+    private var currentAlertNotifId = 2000
+
+    /**
+     * Stage 1: Fires the alert notification immediately with sound.
+     * Returns the notification ID so it can be updated with details later.
+     */
+    private fun sendAlertNotification(): Int {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         // Use user-selected sound, or fall back to the bundled custom alert
@@ -416,20 +485,9 @@ class FoodRescueService : Service() {
             }
         }
 
-        var launchIntent = packageManager.getLaunchIntentForPackage("com.application.zomato")
+        val pendingIntent = createAlertPendingIntent()
 
-        if (launchIntent == null) {
-            launchIntent = Intent(this, MainActivity::class.java)
-        }
-
-        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            launchIntent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
+        val notifId = currentAlertNotifId++
 
         val notification = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_notification_jomato)
@@ -444,7 +502,65 @@ class FoodRescueService : Service() {
             .setAutoCancel(true)
             .build()
 
-        notificationManager.notify(System.currentTimeMillis().toInt(), notification)
+        notificationManager.notify(notifId, notification)
+        return notifId
+    }
+
+    /**
+     * Stage 2: Silently update the notification with cart details.
+     * Does NOT replay sound or vibration — just replaces the text content.
+     */
+    private fun updateAlertWithDetails(notifId: Int, details: CartNotifDetails) {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        val channelVersion = Prefs.getAlertChannelVersion(this)
+        val channelId = "${CHANNEL_ID_ALERTS_BASE}_v${channelVersion}"
+
+        val pendingIntent = createAlertPendingIntent()
+
+        // Format the price line
+        val priceLine = if (details.originalPrice != null && details.originalPrice > details.discountedPrice) {
+            "₹${formatPrice(details.originalPrice)} → ₹${formatPrice(details.discountedPrice)}"
+        } else {
+            "₹${formatPrice(details.discountedPrice)}"
+        }
+
+        val watchingText = if (details.viewerCount > 0) " · ${details.viewerCount} watching" else ""
+
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(R.drawable.ic_notification_jomato)
+            .setContentTitle("\uD83C\uDF55 ${details.restaurantName}")
+            .setContentText("$priceLine$watchingText — tap to claim!")
+            .setStyle(NotificationCompat.BigTextStyle()
+                .bigText("$priceLine$watchingText\nTap to open Zomato and claim this order before it's gone!"))
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setOnlyAlertOnce(true)  // Don't replay sound/vibration on update
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .build()
+
+        notificationManager.notify(notifId, notification)
+        FileLogger.log(this, "Logic", "Notification updated: ${details.restaurantName} | $priceLine | ${details.viewerCount} watching")
+    }
+
+    private fun createAlertPendingIntent(): PendingIntent {
+        var launchIntent = packageManager.getLaunchIntentForPackage("com.application.zomato")
+        if (launchIntent == null) {
+            launchIntent = Intent(this, MainActivity::class.java)
+        }
+        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        return PendingIntent.getActivity(
+            this, 0, launchIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+    }
+
+    private fun formatPrice(amount: Double): String {
+        val nf = java.text.NumberFormat.getNumberInstance(java.util.Locale("en", "IN"))
+        nf.maximumFractionDigits = 0
+        nf.minimumFractionDigits = 0
+        return nf.format(amount)
     }
 
     private fun updateNotification(text: String) {
