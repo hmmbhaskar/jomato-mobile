@@ -11,7 +11,7 @@ import com.application.jomato.R
 import com.application.jomato.entity.zomato.ZomatoManager
 import com.application.jomato.entity.zomato.api.ApiClient
 import com.application.jomato.entity.zomato.api.FoodRescueConf
-import com.application.jomato.utils.AnalyticsManager
+
 import com.application.jomato.utils.FileLogger
 import kotlinx.coroutines.*
 import kotlinx.serialization.json.*
@@ -230,7 +230,7 @@ class FoodRescueService : Service() {
 
            val brokerUrl = "ssl://hedwig.zomato.com:443"
 
-            val clientId = "user${System.currentTimeMillis()}"
+            val clientId = "${java.util.UUID.randomUUID().toString().take(23)}"
 
             mqttClient = MqttClient(brokerUrl, clientId, MemoryPersistence())
 
@@ -366,11 +366,7 @@ class FoodRescueService : Service() {
         if (orderDetails != null) {
             FileLogger.log(this, "Logic", "Order $identifier claimed by our user. Cart: ${orderDetails.cartTotal}, Paid: ${orderDetails.paidAmount}")
             ZomatoManager.saveOrderClaimedState(this, identifier, orderDetails)
-            if (orderDetails.cartTotal != null && orderDetails.paidAmount != null) {
-                AnalyticsManager.pingFoodRescue(this, identifier, orderDetails.cartTotal, orderDetails.paidAmount)
-            } else {
-                FileLogger.log(this, "Analytics", "Skipping: cartTotal or paidAmount null for $identifier")
-            }
+            // Zero telemetry fork: order metrics are not reported externally
         } else {
             FileLogger.log(this, "Logic", "Order $identifier not owned by our user")
             ZomatoManager.saveOrderClaimedState(this, identifier, null)

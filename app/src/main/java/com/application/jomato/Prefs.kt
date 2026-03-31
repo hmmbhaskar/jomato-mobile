@@ -10,24 +10,12 @@ object Prefs {
 
     private const val PREFS_NAME = "jomato_prefs"
     private const val TAG = "Prefs"
-    private const val KEY_INSTALL_ID = "install_id"
     private const val KEY_HIDE_INTEGRITY = "hide_integrity_dialog"
     private const val KEY_THEME_MODE = "theme_mode"
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    fun getInstallId(context: Context): String {
-        var installId = prefs(context).getString(KEY_INSTALL_ID, null)
-        if (installId == null) {
-            val bytes = ByteArray(8)
-            java.security.SecureRandom().nextBytes(bytes)
-            installId = bytes.joinToString("") { "%02x".format(it) }
-            prefs(context).edit().putString(KEY_INSTALL_ID, installId).apply()
-            FileLogger.log(context, TAG, "Generated new install ID: $installId")
-        }
-        return installId!!
-    }
 
     fun getHideIntegrity(context: Context): Boolean =
         prefs(context).getBoolean(KEY_HIDE_INTEGRITY, false)

@@ -1,111 +1,88 @@
-# Jomato
+# Jomato — Zero Telemetry Fork
 
 <div align="center">
 
-### The Unofficial Zomato Client
-**Providing Features Zomato Does Not Want You to Have or Know**
-
-[![Latest Release](https://img.shields.io/github/v/release/jatin-dot-py/jomato-mobile?style=for-the-badge&color=e23744&label=LATEST%20RELEASE)](https://github.com/jatin-dot-py/jomato-mobile/releases)
+### The Unofficial Zomato Client — Privacy-First Edition
+**Built from source with all telemetry, analytics, and remote update mechanisms removed.**
 
 </div>
 
-> [!CAUTION]
-> **Only download Jomato from the official GitHub releases page.**
-> There is no other official source — no Telegram groups, no third party websites, no WhatsApp links.
-> If you downloaded from anywhere else, delete it immediately.
+> [!IMPORTANT]
+> This is a **hard fork** of [jatin-dot-py/jomato-mobile](https://github.com/jatin-dot-py/jomato-mobile).
+> All analytics, tracking, and remote APK update capabilities have been stripped. See [What Was Removed](#what-was-removed) for details.
 
 ---
 
-## About The Project
+## About
 
-Jomato is an unofficial, reverse-engineered client for Zomato. It delivers utility features that enhance user experience beyond the official app's offerings, focusing on capabilities not readily available or promoted.
+Jomato is an unofficial, reverse-engineered client for Zomato that delivers utility features not available in the official app. This fork removes all phone-home telemetry from the original project while keeping full functionality.
 
 ## Features
 
-- **Instant Food Rescue Notifications**: Monitors Food Rescue events in real time within your area. Delivers immediate alerts upon listing of a rescue basket by a restaurant. Allows direct access to the deal via notification tap, ensuring timely acquisition before depletion.
+- **Instant Food Rescue Notifications**: Monitors Food Rescue events in real time within your area. Delivers immediate alerts and allows direct access via notification tap.
+
+---
+
+## What Was Removed
+
+| Component | Original Behavior | This Fork |
+|---|---|---|
+| **App-open analytics** | Sent install ID, app version, Android version to developer's server on every launch | ❌ Removed |
+| **Order tracking** | Sent order ID, cart total, and amount paid to developer's server on Food Rescue claim | ❌ Removed |
+| **Install ID generation** | Created a persistent 16-char hex tracking ID on first launch | ❌ Removed |
+| **Remote APK updater** | Could download and sideload APKs from developer's server | ❌ Removed |
+| **`REQUEST_INSTALL_PACKAGES`** | Android permission allowing APK sideloading | ❌ Removed |
+| **`FileProvider`** | Used by the updater to serve downloaded APKs to the installer | ❌ Removed |
+
+---
+
+## Privacy
+
+**This fork has zero telemetry. No data leaves your device.**
+
+- No analytics pings of any kind
+- No install ID generation or tracking
+- No order/cart data exfiltration
+- No remote update mechanism
+- All user data (sessions, preferences) stays on-device in local storage
+- The app only communicates with Zomato's own servers for login and Food Rescue monitoring
 
 ---
 
 ## How to Install
 
-Jomato is an unofficial application **not available on the Google Play Store**, which may trigger security warnings during installation. This is expected behavior. The following guide provides a detailed, step-by-step process for installation and initial setup.
+### Option A: Download the APK
 
-### Step 1: Download the APK
+- Navigate to the [Releases Page](../../releases) of this fork
+- Download the latest APK and install it on your device
+- You will see a Play Protect warning — this is expected for apps not on the Play Store
 
-- Navigate to the [**Releases Page**](https://github.com/jatin-dot-py/jomato-mobile/releases)
-- Select and download the latest file, such as `Jomato-v1.0.1.apk`
+### Option B: Build from Source
 
-### Step 2: Install the App
+1. Clone this repository
+2. Open the project in **Android Studio**
+3. Create `local.properties` in the project root:
+   ```properties
+   sdk.dir=C\:\\Users\\YourUsername\\AppData\\Local\\Android\\Sdk
+   UI_JSON_HOST_PRIMARY=localhost
+   UI_JSON_HOST_FALLBACK=localhost
+   ```
+4. Let Gradle sync complete
+5. **Build** → **Build Bundle(s) / APK(s)** → **Build APK(s)**
+6. Or from terminal: `./gradlew assembleRelease`
 
-Locate the downloaded APK file in your device's file manager or notifications and tap it to begin installation.
+> **Note:** Set `UI_JSON_HOST_PRIMARY` and `UI_JSON_HOST_FALLBACK` to `localhost` to fully disconnect from any external config servers. The app will still function for Food Rescue monitoring.
 
-You will encounter a **Play Protect warning** indicating that the app is from an unknown developer.
+---
 
-<div align="center">
-<img src="screenshots/play_protect_warning.jpeg" alt="Play Protect Warning" width="300"/>
-</div>
+## Setup After Install
 
-You have two options:
-
-- **Option A:** Select **"Install without scanning"** to proceed directly with installation
-- **Option B:** Select **"Scan app"** and after the scan completes, choose **"Install"**
-
-<div align="center">
-<img src="screenshots/play_protect_post_scan.jpeg" alt="Play Protect Post-Scan" width="300"/>
-</div>
-
-> **Note:** These warnings occur because the app uses a personal key signature and hasn't been reviewed by Google Play. The source code is publicly available in this repository for verification and transparency.
-
-### Step 4: Login into your zomato account
-
-After opening the app you will see a login screen. Enter your phone number and verify it with OTP.
-
-<div align="center">
-<img src="screenshots/login.jpeg" alt="Home Screen" width="300"/>
-</div>
-
-
-
-### Step 3: Open the App
-
-Once login is complete, open Jomato. You'll see the home screen with the **Food Rescue widget** option.
-
-<div align="center">
-<img src="screenshots/home_screen.jpeg" alt="Home Screen" width="300"/>
-</div>
-
-- Tap on the **Food Rescue widget** to set it up
-
-### Step 4: Select Location & Allow Permissions
-
-
-- Select your **location** to monitor Food Rescue deals in your area
-
-- When prompted, allow notification permissions:
-
-<div align="center">
-<img src="screenshots/allow_permissions.jpeg" alt="Allow Notification Permission" width="300"/>
-</div>
-
-
-### Step 5: Disable Battery Optimization
-
-For reliable real-time notifications, you need to disable battery optimization for Jomato.
-
-<div align="center">
-<img src="screenshots/disable_battery_optimization.jpeg" alt="Disable Battery Optimization" width="300"/>
-</div>
-
-
-### Step 6: All Set! 🎉
-
-<div align="center">
-<img src="screenshots/post_setup.jpeg" alt="All Set" width="300"/>
-</div>
-
-You're now ready to receive instant notifications whenever Food Rescue deals appear near you!
-
-<br>
+1. Open the app and log in with your Zomato phone number + OTP
+2. Tap on the **Food Rescue widget** on the home screen
+3. Select your **location** to monitor
+4. Allow **notification permissions** when prompted
+5. Disable **battery optimization** for reliable background notifications
+6. Done! You'll receive instant alerts for Food Rescue deals near you.
 
 ---
 
@@ -120,24 +97,8 @@ This project is intended for **educational purposes only**.
 
 ---
 
-## Analytics & Privacy
+## License
 
-Jomato collects minimal anonymous analytics to understand how many people are using the app and which versions are actively in use.
+MIT License — see [LICENSE](LICENSE) for details.
 
-**What is collected on every app open:**
-- A randomly generated install ID (16 character hex string, generated on first launch)
-- App version name and version code
-- Android version
-
-**What is NOT collected:**
-- No personal information whatsoever
-- No location
-- No usage patterns beyond app open
-- The install ID cannot be traced back to you
-
-**All user data is saved locally. Jomato does not have any backend.**
-
-Analytical data is stored on Cloudflare D1 and is used solely to display aggregate stats (total installs, active users, version distribution). The install ID resets on app reinstall.
-
-
-</div>
+Original project by [jatin-dot-py](https://github.com/jatin-dot-py/jomato-mobile). This fork strips telemetry and is maintained independently.

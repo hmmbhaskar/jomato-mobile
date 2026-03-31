@@ -11,7 +11,7 @@ object WidgetRegistry {
     init {
         register(FaqWidget())
         register(AttributionWidget())
-        register(UpdateWidget())
+        // UpdateWidget removed: zero telemetry fork does not support remote APK updates
     }
 
     fun register(widget: BaseWidget) {

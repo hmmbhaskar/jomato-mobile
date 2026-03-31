@@ -26,10 +26,8 @@ import com.application.jomato.ui.FeatureScreen
 import com.application.jomato.ui.dashboard.DashboardScreen
 import com.application.jomato.ui.PrivacyFaqScreen
 import com.application.jomato.ui.theme.JomatoTheme
-import com.application.jomato.utils.AnalyticsManager
 import com.application.jomato.utils.FileLogger
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
@@ -44,7 +42,6 @@ class MainActivity : ComponentActivity() {
 fun JomatoApp() {
     val navController = rememberNavController()
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
     var integrityResult by remember { mutableStateOf<IntegrityResult?>(null) }
     var showIntegrityDialog by remember { mutableStateOf(false) }
@@ -66,9 +63,7 @@ fun JomatoApp() {
             if (fail.strict) return@LaunchedEffect
         }
 
-        scope.launch(Dispatchers.IO) {
-            AnalyticsManager.pingAppOpen(context)
-        }
+
 
         val migrated = withContext(Dispatchers.IO) {
             SessionMigration.runIfNeeded(context)

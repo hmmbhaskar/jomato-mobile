@@ -22,7 +22,7 @@ import com.application.jomato.Prefs
 import com.application.jomato.config.UiConfigManager
 import com.application.jomato.ui.theme.JomatoTheme
 
-private const val FALLBACK_ISSUES_URL = "https://github.com/jatin-dot-py/jomato-mobile/issues/new?title=%5BIssue%5D%20Short%20Description%20here%20&body=Describe%20the%20issue%20you%20are%20facing."
+private const val FALLBACK_ISSUES_URL = ""
 
 @Composable
 fun DashboardTopBar() {

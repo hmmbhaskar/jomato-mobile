@@ -21,9 +21,13 @@ android {
 
         def localProps = new Properties()
         localProps.load(new FileInputStream(rootProject.file("local.properties")))
-        buildConfigField "String", "WORKER_URL", "\"${localProps['WORKER_URL']}\""
-        buildConfigField "String", "FOOD_RESCUE_METRICS_URL", "\"${localProps['FOOD_RESCUE_METRICS_URL']}\""
-        buildConfigField "String", "FALLBACK_UPDATE_URL", "\"${localProps['FALLBACK_UPDATE_URL']}\""
+
+        // Zero-telemetry fork: analytics endpoints are disabled
+        buildConfigField "String", "WORKER_URL", '""'
+        buildConfigField "String", "FOOD_RESCUE_METRICS_URL", '""'
+        buildConfigField "String", "FALLBACK_UPDATE_URL", '""'
+
+        // UI config hosts are still needed for entity/feature definitions
         buildConfigField "String", "UI_JSON_HOST_PRIMARY", "\"${localProps['UI_JSON_HOST_PRIMARY']}\""
         buildConfigField "String", "UI_JSON_HOST_FALLBACK", "\"${localProps['UI_JSON_HOST_FALLBACK']}\""
 

@@ -21,7 +21,7 @@ import androidx.navigation.NavController
 import com.application.jomato.config.UiConfigManager
 import com.application.jomato.ui.theme.JomatoTheme
 
-private const val FALLBACK_FEATURE_URL = "https://github.com/jatin-dot-py/jomato-mobile/issues/new?title=%5BFeature%20Request%5D%20Short%20description%20here%20&body=Describe%20the%20feature."
+private const val FALLBACK_FEATURE_URL = ""
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -46,11 +46,17 @@ internal object FoodRescueCartApi {
                 .add("X-Zomato-Access-Token", accessToken)
                 .add("Content-Type", "application/json; charset=UTF-8")
 
-            if (location.lat != null) headersBuilder.add("X-User-Defined-Lat", location.lat.toString())
-            if (location.lng != null) headersBuilder.add("X-User-Defined-Long", location.lng.toString())
+            if (location.lat != null) {
+                headersBuilder.add("X-User-Defined-Lat", location.lat.toString())
+                headersBuilder.add("X-Present-Lat", location.lat.toString())
+            }
+            if (location.lng != null) {
+                headersBuilder.add("X-User-Defined-Long", location.lng.toString())
+                headersBuilder.add("X-Present-Long", location.lng.toString())
+            }
 
-            headersBuilder.add("X-City-Id", essentials.cityId.toString())
-            headersBuilder.add("X-O2-City-Id", essentials.cityId.toString())
+            headersBuilder.set("X-City-Id", essentials.cityId.toString())
+            headersBuilder.set("X-O2-City-Id", essentials.cityId.toString())
 
             val request = Request.Builder()
                 .url(url)
