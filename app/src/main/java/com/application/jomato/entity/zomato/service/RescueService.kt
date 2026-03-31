@@ -66,7 +66,8 @@ class FoodRescueService : Service() {
 
         val pm = getSystemService(POWER_SERVICE) as PowerManager
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Jomato:ReliabilityLock")
-        wakeLock?.acquire(10 * 60 * 1000L)
+        // WakeLock is re-acquired in the reliability loop; initial acquire just covers startup
+        wakeLock?.acquire(2 * 60 * 1000L)
         FileLogger.log(this, "Service", "WakeLock acquired")
 
         createNotificationChannels()
@@ -143,9 +144,13 @@ class FoodRescueService : Service() {
         }
     }
 
+    /** Sanitize message ID for use as a filename — replace anything that isn't alphanumeric/dash/underscore */
+    private fun sanitizeMsgId(msgId: String): String =
+        msgId.replace(Regex("[^a-zA-Z0-9_\\-]"), "_")
+
     private fun isMessageProcessed(msgId: String): Boolean {
         return try {
-            val file = File(File(filesDir, dedupDirName), msgId)
+            val file = File(File(filesDir, dedupDirName), sanitizeMsgId(msgId))
             file.exists()
         } catch (e: Exception) {
             false
@@ -154,7 +159,7 @@ class FoodRescueService : Service() {
 
     private fun markMessageProcessed(msgId: String) {
         try {
-            val file = File(File(filesDir, dedupDirName), msgId)
+            val file = File(File(filesDir, dedupDirName), sanitizeMsgId(msgId))
             if (!file.exists()) {
                 file.createNewFile()
             }
@@ -199,16 +204,32 @@ class FoodRescueService : Service() {
                     val now = System.currentTimeMillis()
                     val shouldForceReconnect = lastConnectedAt > 0L && (now - lastConnectedAt) >= RECONNECT_INTERVAL_MS
 
-                    if (mqttClient == null || !mqttClient!!.isConnected || shouldForceReconnect) {
+                    // Check if MQTT credentials have expired
+                    val primaryConfig = state.addresses.firstNotNullOfOrNull { it.essentials.foodRescue }
+                    val credentialsExpired = primaryConfig != null && primaryConfig.validUntil > 0L &&
+                        now / 1000 > primaryConfig.validUntil
+
+                    if (credentialsExpired) {
+                        FileLogger.log(this@FoodRescueService, "Service", "MQTT credentials expired (validUntil: ${primaryConfig?.validUntil}). Please restart monitoring.")
+                        updateNotification("Credentials expired — please restart monitoring")
+                    } else if (mqttClient == null || !mqttClient!!.isConnected || shouldForceReconnect) {
                         if (shouldForceReconnect) {
                             FileLogger.log(this@FoodRescueService, "Service", "Force reconnect triggered (interval)")
                         } else {
                             FileLogger.log(this@FoodRescueService, "Service", "MQTT not connected, attempting connection...")
                         }
                         connectMqttMulti(state)
+                        updateNotification(buildNotificationText(state))
+                    } else {
+                        updateNotification(buildNotificationText(state))
                     }
 
-                    updateNotification(buildNotificationText(state))
+                    // Re-acquire WakeLock to prevent CPU sleep between loop iterations
+                    try {
+                        if (wakeLock?.isHeld == false) {
+                            wakeLock?.acquire(2 * 60 * 1000L)
+                        }
+                    } catch (_: Exception) { }
 
                 } catch (e: Exception) {
                     FileLogger.log(this@FoodRescueService, "Service", "Loop Error: ${e.message}", e)
@@ -481,8 +502,10 @@ class FoodRescueService : Service() {
         }
     }
 
-    /** Stable ID for the current alert notification, so stage 2 can update it */
+    /** Wraps around at ALERT_NOTIF_ID_MAX to prevent unbounded notification ID growth */
     private var currentAlertNotifId = 2000
+    private val ALERT_NOTIF_ID_MIN = 2000
+    private val ALERT_NOTIF_ID_MAX = 3000
 
     /**
      * Stage 1: Fires the alert notification immediately with sound.
@@ -522,15 +545,16 @@ class FoodRescueService : Service() {
             }
             notificationManager.createNotificationChannel(alertChannel)
 
-            // Clean up old versioned channels
-            for (i in 1 until channelVersion) {
-                notificationManager.deleteNotificationChannel("${CHANNEL_ID_ALERTS_BASE}_v${i}")
+            // Clean up only the previous channel version (no need to loop through all prior)
+            if (channelVersion > 1) {
+                notificationManager.deleteNotificationChannel("${CHANNEL_ID_ALERTS_BASE}_v${channelVersion - 1}")
             }
         }
 
         val pendingIntent = createAlertPendingIntent()
 
-        val notifId = currentAlertNotifId++
+        val notifId = currentAlertNotifId
+        currentAlertNotifId = if (currentAlertNotifId >= ALERT_NOTIF_ID_MAX) ALERT_NOTIF_ID_MIN else currentAlertNotifId + 1
 
         val notification = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_notification_jomato)

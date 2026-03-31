@@ -16,7 +16,10 @@ import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.QuestionAnswer
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,20 +42,19 @@ fun NotificationSoundRow() {
     val context = LocalContext.current
     val defaultSoundUri = Uri.parse("android.resource://${context.packageName}/${R.raw.food_rescue_alert}")
 
-    // Get the currently saved sound name for display
-    val currentSoundName = remember {
-        val savedUri = Prefs.getAlertSoundUri(context)
-        if (savedUri == null) {
-            "Default (Food Rescue Alert)"
-        } else {
-            try {
-                val ringtone = RingtoneManager.getRingtone(context, Uri.parse(savedUri))
-                ringtone?.getTitle(context) ?: "Custom sound"
-            } catch (_: Exception) {
-                "Custom sound"
-            }
+    // Resolve a sound URI to a human-readable name
+    fun resolveSoundName(uri: String?): String {
+        if (uri == null) return "Default (Food Rescue Alert)"
+        return try {
+            val ringtone = RingtoneManager.getRingtone(context, Uri.parse(uri))
+            ringtone?.getTitle(context) ?: "Custom sound"
+        } catch (_: Exception) {
+            "Custom sound"
         }
     }
+
+    // Reactive state so the UI updates immediately after picking a new sound
+    var currentSoundName by remember { mutableStateOf(resolveSoundName(Prefs.getAlertSoundUri(context))) }
 
     // Launcher for the system ringtone picker
     val ringtoneLauncher = rememberLauncherForActivityResult(
@@ -66,8 +68,9 @@ fun NotificationSoundRow() {
                 result.data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
             }
             Prefs.setAlertSoundUri(context, uri?.toString())
-            // Increment channel version so the service creates a new channel with the new sound
             Prefs.incrementAlertChannelVersion(context)
+            // Update display immediately
+            currentSoundName = resolveSoundName(uri?.toString())
         }
     }
 

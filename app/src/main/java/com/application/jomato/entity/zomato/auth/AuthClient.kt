@@ -29,21 +29,21 @@ object AuthClient {
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    private var codeVerifier: String = ""
-    private var loginChallenge: String = ""
+    /** State returned by preOtpFlow, consumed by postOtpFlow */
+    data class PreOtpState(val codeVerifier: String, val loginChallenge: String)
 
     data class AuthResult(val accessToken: String, val refreshToken: String)
 
     private val commonHeaders: Headers = ApiBase.commonHeaders
 
-    fun preOtpFlow(context: Context, phone: String, otpPref: String): Boolean {
+    fun preOtpFlow(context: Context, phone: String, otpPref: String): PreOtpState? {
         try {
             FileLogger.log(context, TAG, "=== Starting preOtpFlow ===")
             FileLogger.log(context, TAG, "Phone: $phone, OTP Preference: $otpPref")
 
             val bytes = ByteArray(32)
             SecureRandom().nextBytes(bytes)
-            codeVerifier = Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+            val codeVerifier = Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
 
             val digest = MessageDigest.getInstance("SHA-256").digest(codeVerifier.toByteArray())
             val codeChallenge = Base64.encodeToString(digest, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
@@ -78,9 +78,9 @@ object AuthClient {
             }
 
             val finalUrl = authResponse.request.url
-            loginChallenge = finalUrl.queryParameter("login_challenge") ?: run {
+            val loginChallenge = finalUrl.queryParameter("login_challenge") ?: run {
                 FileLogger.log(context, TAG, "Failed to extract login_challenge", Exception("URL: $finalUrl"))
-                return false
+                return null
             }
 
             FileLogger.log(context, TAG, "Login Challenge extracted")
@@ -122,15 +122,15 @@ object AuthClient {
             }
 
             FileLogger.log(context, TAG, "=== preOtpFlow completed. Status: $status ===")
-            return status
+            return if (status) PreOtpState(codeVerifier, loginChallenge) else null
 
         } catch (e: Exception) {
             FileLogger.log(context, TAG, "Exception in preOtpFlow", e)
-            return false
+            return null
         }
     }
 
-    fun postOtpFlow(context: Context, phone: String, otp: String): AuthResult? {
+    fun postOtpFlow(context: Context, phone: String, otp: String, preOtpState: PreOtpState): AuthResult? {
         try {
             FileLogger.log(context, TAG, "=== Starting postOtpFlow ===")
             FileLogger.log(context, TAG, "Phone: $phone, OTP: ******")
@@ -140,7 +140,7 @@ object AuthClient {
                 .add("number", phone)
                 .add("otp", otp)
                 .add("country_id", "1")
-                .add("lc", loginChallenge)
+                .add("lc", preOtpState.loginChallenge)
                 .add("type", "verify")
                 .add("trust_this_device", "true")
                 .add("device_token", "")
@@ -236,7 +236,7 @@ object AuthClient {
                 .add("grant_type", "authorization_code")
                 .add("code", code)
                 .add("state", state)
-                .add("code_verifier", codeVerifier)
+                .add("code_verifier", preOtpState.codeVerifier)
                 .add("client_id", "5276d7f1-910b-4243-92ea-d27e758ad02b")
                 .add("redirect_uri", "https://accounts.zomato.com/zoauth/callback")
 

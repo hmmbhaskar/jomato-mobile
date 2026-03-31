@@ -47,6 +47,7 @@ fun ZomatoLoginScreen(navController: NavController) {
     var showOtpScreen by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var otpPreference by remember { mutableStateOf("sms") }
+    var preOtpState by remember { mutableStateOf<AuthClient.PreOtpState?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -215,11 +216,12 @@ fun ZomatoLoginScreen(navController: NavController) {
                                     coroutineScope.launch {
                                         try {
                                             FileLogger.log(context, "LoginScreen", "Initiating Pre-OTP for $phoneNumber via $otpPreference")
-                                            val success = withContext(Dispatchers.IO) {
+                                            val result = withContext(Dispatchers.IO) {
                                                 AuthClient.preOtpFlow(context, phoneNumber, otpPreference)
                                             }
-                                            if (success) {
+                                            if (result != null) {
                                                 FileLogger.log(context, "LoginScreen", "Pre-OTP Success. Showing OTP input.")
+                                                preOtpState = result
                                                 showOtpScreen = true
                                             } else {
                                                 FileLogger.log(context, "LoginScreen", "Pre-OTP Failed.")
@@ -278,9 +280,16 @@ fun ZomatoLoginScreen(navController: NavController) {
                                     isLoading = true
                                     coroutineScope.launch {
                                         try {
+                                            val currentPreOtp = preOtpState
+                                            if (currentPreOtp == null) {
+                                                snackbarHostState.showSnackbar("Session expired. Please request OTP again.")
+                                                showOtpScreen = false
+                                                isLoading = false
+                                                return@launch
+                                            }
                                             FileLogger.log(context, "LoginScreen", "Verifying OTP...")
                                             val result = withContext(Dispatchers.IO) {
-                                                AuthClient.postOtpFlow(context, phoneNumber, otp)
+                                                AuthClient.postOtpFlow(context, phoneNumber, otp, currentPreOtp)
                                             }
                                             if (result != null) {
                                                 FileLogger.log(context, "LoginScreen", "OTP Verified. Fetching profile...")
