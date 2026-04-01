@@ -10,9 +10,7 @@ import com.application.jomato.sessions.BaseSessionManager
 import com.application.jomato.sessions.Entity
 import com.application.jomato.utils.FileLogger
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
+import kotlinx.serialization.json.*
 
 object ZomatoManager : BaseSessionManager<ZomatoSession>() {
 
@@ -264,12 +262,11 @@ object ZomatoManager : BaseSessionManager<ZomatoSession>() {
     fun getMissedAlerts(context: Context): List<MissedAlert> {
         return getMissedAlertsRaw(context).mapNotNull { raw ->
             try {
-                val obj = json.parseToJsonElement(raw).let { it as? kotlinx.serialization.json.JsonObject } ?: return@mapNotNull null
-                MissedAlert(
-                    timestamp = obj["t"]?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.longOrNull } ?: return@mapNotNull null,
-                    addressName = obj["n"]?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content } ?: "Unknown",
-                    addressShort = obj["a"]?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content } ?: ""
-                )
+                val obj = json.parseToJsonElement(raw).jsonObject
+                val t = obj["t"]?.jsonPrimitive?.longOrNull ?: return@mapNotNull null
+                val n = obj["n"]?.jsonPrimitive?.content ?: "Unknown"
+                val a = obj["a"]?.jsonPrimitive?.content ?: ""
+                MissedAlert(timestamp = t, addressName = n, addressShort = a)
             } catch (_: Exception) { null }
         }.sortedByDescending { it.timestamp }
     }
