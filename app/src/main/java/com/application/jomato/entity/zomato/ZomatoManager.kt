@@ -160,6 +160,7 @@ object ZomatoManager : BaseSessionManager<ZomatoSession>() {
             .remove(frKey("fr_started_at"))
             .remove(frKey("fr_last_notification_at"))
             .remove(frKey("fr_session_id"))
+            .remove(frKey("fr_missed_alerts"))
             .apply()
         FileLogger.log(context, TAG, "FR stopped")
     }
@@ -234,6 +235,57 @@ object ZomatoManager : BaseSessionManager<ZomatoSession>() {
         FileLogger.log(context, TAG, "Cleared ${keysToRemove.size} claimed order entries")
     }
 
+    // ── Missed Alerts ─────────────────────────────────────────────────────────
 
+    private const val MAX_MISSED_ALERTS = 50
+
+    /**
+     * Saves a missed alert (notification suppressed by cooldown).
+     * Stores: timestamp, address name, short address.
+     */
+    fun saveMissedAlert(context: Context, timestamp: Long, addressName: String, addressShort: String) {
+        val existing = getMissedAlertsRaw(context).toMutableList()
+        val entry = buildJsonObject {
+            put("t", timestamp)
+            put("n", addressName)
+            put("a", addressShort)
+        }.toString()
+        existing.add(entry)
+        // Keep only the latest MAX_MISSED_ALERTS
+        val trimmed = if (existing.size > MAX_MISSED_ALERTS) existing.takeLast(MAX_MISSED_ALERTS) else existing
+        prefs(context).edit()
+            .putString(frKey("fr_missed_alerts"), json.encodeToString(trimmed))
+            .apply()
+        FileLogger.log(context, TAG, "Missed alert saved | $addressName | total: ${trimmed.size}")
+    }
+
+    data class MissedAlert(val timestamp: Long, val addressName: String, val addressShort: String)
+
+    fun getMissedAlerts(context: Context): List<MissedAlert> {
+        return getMissedAlertsRaw(context).mapNotNull { raw ->
+            try {
+                val obj = json.parseToJsonElement(raw).let { it as? kotlinx.serialization.json.JsonObject } ?: return@mapNotNull null
+                MissedAlert(
+                    timestamp = obj["t"]?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.longOrNull } ?: return@mapNotNull null,
+                    addressName = obj["n"]?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content } ?: "Unknown",
+                    addressShort = obj["a"]?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content } ?: ""
+                )
+            } catch (_: Exception) { null }
+        }.sortedByDescending { it.timestamp }
+    }
+
+    fun getMissedAlertCount(context: Context): Int = getMissedAlertsRaw(context).size
+
+    fun clearMissedAlerts(context: Context) {
+        prefs(context).edit().remove(frKey("fr_missed_alerts")).apply()
+        FileLogger.log(context, TAG, "Missed alerts cleared")
+    }
+
+    private fun getMissedAlertsRaw(context: Context): List<String> {
+        val raw = prefs(context).getString(frKey("fr_missed_alerts"), null) ?: return emptyList()
+        return try {
+            json.decodeFromString<List<String>>(raw)
+        } catch (_: Exception) { emptyList() }
+    }
 
 }

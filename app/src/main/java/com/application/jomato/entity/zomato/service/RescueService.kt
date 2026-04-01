@@ -281,7 +281,7 @@ class FoodRescueService : Service() {
                 }
 
                 override fun messageArrived(topic: String?, message: MqttMessage?) {
-                    serviceScope.launch { handleMqttMessage(message) }
+                    serviceScope.launch { handleMqttMessage(topic, message) }
                 }
 
                 override fun deliveryComplete(token: IMqttDeliveryToken?) {}
@@ -323,7 +323,7 @@ class FoodRescueService : Service() {
         }
     }
 
-    private suspend fun handleMqttMessage(message: MqttMessage?) {
+    private suspend fun handleMqttMessage(topic: String?, message: MqttMessage?) {
         if (message == null) return
 
         try {
@@ -360,7 +360,7 @@ class FoodRescueService : Service() {
             }
 
             when (eventType) {
-                "order_cancelled" -> handleOrderCancelled(msgId)
+                "order_cancelled" -> handleOrderCancelled(msgId, topic)
                 "order_claimed" -> handleOrderClaimed(root)
                 else -> return
             }
@@ -370,7 +370,20 @@ class FoodRescueService : Service() {
         }
     }
 
-    private fun handleOrderCancelled(msgId: String?) {
+    /**
+     * Resolves an MQTT topic to the monitored address it belongs to.
+     * Returns the address name and a short version of the full address.
+     */
+    private fun resolveTopicAddress(topic: String?): Pair<String, String>? {
+        if (topic == null) return null
+        val state = ZomatoManager.getFoodRescueState(this) ?: return null
+        val match = state.addresses.find { it.essentials.foodRescue?.channelName == topic }
+            ?: return null
+        val shortAddr = match.location.fullAddress.split(",").take(2).joinToString(",").trim()
+        return Pair(match.location.name, shortAddr)
+    }
+
+    private fun handleOrderCancelled(msgId: String?, topic: String?) {
         FileLogger.log(this, "Logic", ">>> NEW FRESH ORDER CANCELLED ($msgId) <<<")
 
         val lastNotificationTime = ZomatoManager.getLastNotificationTime(this)
@@ -398,7 +411,15 @@ class FoodRescueService : Service() {
         } else {
             val remaining = (NOTIFICATION_COOLDOWN_MS - timeSinceLast) / 1000
             FileLogger.log(this, "Logic", "Notification suppressed. Cooldown active (${remaining}s remaining).")
-        }
+
+            // Save as missed alert with address context
+            val address = resolveTopicAddress(topic)
+            ZomatoManager.saveMissedAlert(
+                this,
+                timestamp = now,
+                addressName = address?.first ?: "Unknown",
+                addressShort = address?.second ?: ""
+            )        }
     }
 
     /**

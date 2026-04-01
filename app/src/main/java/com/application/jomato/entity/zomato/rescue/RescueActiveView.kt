@@ -5,6 +5,7 @@ import android.os.Build
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -58,6 +59,15 @@ fun RescueActiveView(
     val totalSaved = remember { ZomatoManager.getFrTotalSaved(context) }
     val hasClaims = claimedOrders.isNotEmpty()
 
+    // Poll missed alerts every 5 seconds to stay in sync with the service
+    var missedAlerts by remember { mutableStateOf(ZomatoManager.getMissedAlerts(context)) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(5000)
+            missedAlerts = ZomatoManager.getMissedAlerts(context)
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -88,6 +98,18 @@ fun RescueActiveView(
                 EmptyClaimsView(
                     state = state,
                     onStop = onStopClick
+                )
+            }
+
+            // Missed alerts section — always shown if there are any
+            if (missedAlerts.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(20.dp))
+                MissedAlertsSection(
+                    alerts = missedAlerts,
+                    onClear = {
+                        ZomatoManager.clearMissedAlerts(context)
+                        missedAlerts = emptyList()
+                    }
                 )
             }
         }
@@ -400,6 +422,151 @@ private fun ClaimedOrderRow(order: OrderDetails) {
                     Text(
                         text = "+${order.items.size - 3} more",
                         fontSize = 11.sp,
+                        color = JomatoTheme.TextMuted
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ── Missed Alerts ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun MissedAlertsSection(
+    alerts: List<ZomatoManager.MissedAlert>,
+    onClear: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val dateFormat = remember {
+        java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // Section header with count badge
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            JomatoTheme.Warning.copy(alpha = 0.08f),
+                            JomatoTheme.Warning.copy(alpha = 0.03f)
+                        )
+                    )
+                )
+                .clickable { expanded = !expanded }
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "⚡",
+                    fontSize = 16.sp
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "Missed Alerts",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = JomatoTheme.BrandBlack
+                    )
+                    Text(
+                        text = "${alerts.size} suppressed by cooldown",
+                        fontSize = 11.sp,
+                        color = JomatoTheme.TextGray
+                    )
+                }
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Count badge
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(JomatoTheme.Warning.copy(alpha = 0.15f))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "${alerts.size}",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = JomatoTheme.Warning
+                    )
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (expanded) "▲" else "▼",
+                    fontSize = 10.sp,
+                    color = JomatoTheme.TextMuted
+                )
+            }
+        }
+
+        // Expandable list
+        if (expanded) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(JomatoTheme.CardBg)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                alerts.forEachIndexed { index, alert ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "\uD83D\uDCCD ${alert.addressName}",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = JomatoTheme.BrandBlack,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (alert.addressShort.isNotEmpty()) {
+                                Text(
+                                    text = alert.addressShort,
+                                    fontSize = 11.sp,
+                                    color = JomatoTheme.TextGray,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                        Text(
+                            text = dateFormat.format(java.util.Date(alert.timestamp)),
+                            fontSize = 12.sp,
+                            color = JomatoTheme.TextMuted,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    if (index < alerts.lastIndex) {
+                        HorizontalDivider(
+                            color = JomatoTheme.Divider,
+                            thickness = 0.5.dp,
+                            modifier = Modifier.padding(vertical = 2.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(
+                    onClick = onClear,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                ) {
+                    Text(
+                        text = "Clear Missed Alerts",
+                        fontSize = 12.sp,
                         color = JomatoTheme.TextMuted
                     )
                 }
