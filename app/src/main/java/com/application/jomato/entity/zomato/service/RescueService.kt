@@ -204,25 +204,16 @@ class FoodRescueService : Service() {
                     val now = System.currentTimeMillis()
                     val shouldForceReconnect = lastConnectedAt > 0L && (now - lastConnectedAt) >= RECONNECT_INTERVAL_MS
 
-                    // Check if MQTT credentials have expired
-                    val primaryConfig = state.addresses.firstNotNullOfOrNull { it.essentials.foodRescue }
-                    val credentialsExpired = primaryConfig != null && primaryConfig.validUntil > 0L &&
-                        now / 1000 > primaryConfig.validUntil
-
-                    if (credentialsExpired) {
-                        FileLogger.log(this@FoodRescueService, "Service", "MQTT credentials expired (validUntil: ${primaryConfig?.validUntil}). Please restart monitoring.")
-                        updateNotification("Credentials expired — please restart monitoring")
-                    } else if (mqttClient == null || !mqttClient!!.isConnected || shouldForceReconnect) {
+                    if (mqttClient == null || !mqttClient!!.isConnected || shouldForceReconnect) {
                         if (shouldForceReconnect) {
                             FileLogger.log(this@FoodRescueService, "Service", "Force reconnect triggered (interval)")
                         } else {
                             FileLogger.log(this@FoodRescueService, "Service", "MQTT not connected, attempting connection...")
                         }
                         connectMqttMulti(state)
-                        updateNotification(buildNotificationText(state))
-                    } else {
-                        updateNotification(buildNotificationText(state))
                     }
+
+                    updateNotification(buildNotificationText(state))
 
                     // Re-acquire WakeLock to prevent CPU sleep between loop iterations
                     try {
