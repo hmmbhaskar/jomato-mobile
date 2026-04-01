@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Warning
@@ -218,7 +218,7 @@ private fun TrailingIndicator(feature: JomatoFeature, warningColor: Color) {
             modifier = Modifier.size(16.dp)
         )
         else -> Icon(
-            Icons.Rounded.ArrowForward,
+            Icons.AutoMirrored.Rounded.ArrowForward,
             contentDescription = null,
             tint = JomatoTheme.TextMuted,
             modifier = Modifier.size(16.dp)

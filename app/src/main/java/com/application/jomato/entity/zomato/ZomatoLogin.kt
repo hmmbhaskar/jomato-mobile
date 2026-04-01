@@ -39,7 +39,7 @@ import com.application.jomato.ui.theme.JomatoTheme
 
 
 
-@OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ZomatoLoginScreen(navController: NavController) {
     var phoneNumber by remember { mutableStateOf("") }
@@ -89,7 +89,7 @@ fun ZomatoLoginScreen(navController: NavController) {
                 AnimatedContent(
                     targetState = showOtpScreen,
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(300)) + slideInHorizontally { it } with
+                        fadeIn(animationSpec = tween(300)) + slideInHorizontally { it } togetherWith
                                 fadeOut(animationSpec = tween(300)) + slideOutHorizontally { -it }
                     },
                     label = "TitleAnimation"
@@ -136,7 +136,7 @@ fun ZomatoLoginScreen(navController: NavController) {
                 AnimatedContent(
                     targetState = showOtpScreen,
                     transitionSpec = {
-                        slideInHorizontally(initialOffsetX = { it }) + fadeIn() with
+                        slideInHorizontally(initialOffsetX = { it }) + fadeIn() togetherWith
                                 slideOutHorizontally(targetOffsetX = { -it }) + fadeOut()
                     },
                     label = "ContentAnimation"

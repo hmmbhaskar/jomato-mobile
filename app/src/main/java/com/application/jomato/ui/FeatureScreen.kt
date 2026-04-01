@@ -3,7 +3,7 @@ package com.application.jomato.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.QuestionAnswer
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.*
@@ -83,7 +83,7 @@ private fun FeatureTopBar(
         navigationIcon = {
             IconButton(onClick = onBack) {
                 Icon(
-                    Icons.Rounded.ArrowBack,
+                    Icons.AutoMirrored.Rounded.ArrowBack,
                     contentDescription = "Back",
                     tint = JomatoTheme.BrandBlack
                 )

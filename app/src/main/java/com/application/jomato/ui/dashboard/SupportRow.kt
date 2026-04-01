@@ -11,7 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.QuestionAnswer
 import androidx.compose.material3.*
@@ -130,7 +130,7 @@ fun NotificationSoundRow() {
                 )
             }
             Icon(
-                Icons.Rounded.ArrowForward,
+                Icons.AutoMirrored.Rounded.ArrowForward,
                 contentDescription = null,
                 tint = JomatoTheme.TextMuted,
                 modifier = Modifier.size(16.dp)
@@ -185,7 +185,7 @@ fun PrivacyFaqRow(navController: NavController) {
                 )
             }
             Icon(
-                Icons.Rounded.ArrowForward,
+                Icons.AutoMirrored.Rounded.ArrowForward,
                 contentDescription = null,
                 tint = JomatoTheme.TextMuted,
                 modifier = Modifier.size(16.dp)
