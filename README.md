@@ -274,7 +274,7 @@ Contributions are welcome! Here's how:
 ### Development Setup
 
 - **Android Studio** Hedgehog or newer
-- **JDK 8** (set via `compileOptions` in `build.gradle`)
+- **JDK 11** (set via `compileOptions` in `build.gradle`)
 - **Android SDK 34** (compileSdk)
 - **Min SDK 26** (Android 8.0 Oreo)
 

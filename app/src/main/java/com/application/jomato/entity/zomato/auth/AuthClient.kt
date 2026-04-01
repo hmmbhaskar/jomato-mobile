@@ -176,7 +176,7 @@ object AuthClient {
                 .build()
 
             val consentPageResponse = client.newCall(consentPageRequest).execute()
-            val consentPageBody = consentPageResponse.body?.string() ?: ""
+            consentPageResponse.body?.string() // consume body to close connection
 
             val consentChallenge = consentPageResponse.request.url.queryParameter("consent_challenge")
             if (consentChallenge == null) {
@@ -219,7 +219,7 @@ object AuthClient {
                 .build()
 
             val finalRedirectResponse = client.newCall(finalRedirectRequest).execute()
-            val finalRedirectBody = finalRedirectResponse.body?.string() ?: ""
+            finalRedirectResponse.body?.string() // consume body to close connection
 
             val finalUrl = finalRedirectResponse.request.url
             val code = finalUrl.queryParameter("code")
