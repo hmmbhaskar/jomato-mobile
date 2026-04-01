@@ -74,7 +74,7 @@ object AuthClient {
 
             if (!authResponse.isSuccessful) {
                 FileLogger.log(context, TAG, "Authorization failed. Code: ${authResponse.code}", Exception(authResponseBody))
-                return false
+                return null
             }
 
             val finalUrl = authResponse.request.url
@@ -110,7 +110,7 @@ object AuthClient {
 
             if (!sendOtpResponse.isSuccessful) {
                 FileLogger.log(context, TAG, "Send OTP request failed", Exception(sendOtpBody))
-                return false
+                return null
             }
 
             val json = JSONObject(sendOtpBody)
