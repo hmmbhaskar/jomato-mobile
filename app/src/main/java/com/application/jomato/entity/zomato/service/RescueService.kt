@@ -409,7 +409,9 @@ class FoodRescueService : Service() {
         val restaurantName: String,
         val originalPrice: Double?,
         val discountedPrice: Double,
-        val viewerCount: Int
+        val viewerCount: Int,
+        val addressName: String,
+        val addressFull: String
     )
 
     /**
@@ -444,7 +446,9 @@ class FoodRescueService : Service() {
                     restaurantName = restaurantName,
                     originalPrice = cartInfo.catalogTotalCost,
                     discountedPrice = cartInfo.cartFinalCost,
-                    viewerCount = cartInfo.viewersCount
+                    viewerCount = cartInfo.viewersCount,
+                    addressName = addr.location.name,
+                    addressFull = addr.location.fullAddress
                 )
             } catch (e: Exception) {
                 FileLogger.log(this, "Logic", "Cart fetch failed for ${addr.location.name}: ${e.message}")
@@ -585,12 +589,16 @@ class FoodRescueService : Service() {
 
         val watchingText = if (details.viewerCount > 0) " · ${details.viewerCount} watching" else ""
 
+        // Truncate full address to first meaningful segment for notification readability
+        val shortAddress = details.addressFull.split(",").take(2).joinToString(",").trim()
+        val locationLine = "\uD83D\uDCCD ${details.addressName} · $shortAddress"
+
         val notification = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_notification_jomato)
             .setContentTitle("\uD83C\uDF55 ${details.restaurantName}")
-            .setContentText("$priceLine$watchingText — tap to claim!")
+            .setContentText("$priceLine$watchingText")
             .setStyle(NotificationCompat.BigTextStyle()
-                .bigText("$priceLine$watchingText\nTap to open Zomato and claim this order before it's gone!"))
+                .bigText("$priceLine$watchingText\n$locationLine\nTap to open Zomato and claim this order!"))
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setOnlyAlertOnce(true)  // Don't replay sound/vibration on update
